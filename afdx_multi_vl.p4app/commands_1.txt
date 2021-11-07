@@ -1,0 +1,5 @@
+table_add afdx_table Check_VL 1 1 => 64 3
+mc_node_create 3 3
+mc_mgrp_create 3
+mc_node_associate 3 0
+mc_dump
