@@ -1,5 +1,6 @@
 import os
 import sys
+from shutil import which
 
 PACKET_SIZE = 64
 TABLE_NAME = "afdx_table"
@@ -270,7 +271,12 @@ class Topology:
                 host = self.vls[vl].paths[0][0]
 
                 # Send a packet on the source host of the current VL
-                file.write("p4app exec m " + host + " python ../tmp/send_afdx_packet.py " + vl + ' ' + host)
+                if which('p4app') is not None:
+                    # if the p4app has been added in the /usr/local/bin/ folder
+                    file.write("p4app exec m " + host + " python ../tmp/send_afdx_packet.py " + vl + ' ' + host)
+                else:
+                    # else, p4app has to be in the folder where the check_VLx.sh files are launched
+                    file.write("./p4app exec m " + host + " python ../tmp/send_afdx_packet.py " + vl + ' ' + host)
 
     def print(self):
         """ Print the topology details:
