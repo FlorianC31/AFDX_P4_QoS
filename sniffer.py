@@ -1,6 +1,13 @@
-# example for running the code : python3 sniffer.py h1 h2 h3 s1-eth1 s2-eth3 s1-eth2 s1-eth3
-#  PS : MAXIMUM 8 Nodes, for more change template of GUI tkinter and variable lengths
+## Coded by I.A as part of ITP EMS 2021-2022
+##
+## this script logs the traffic using tcpdump Command
+## both live through a graphic interface and also saves the traffic to txt files
+## example for running the code : python3 sniffer.py h1 h2 h3 s1-eth1 s2-eth3 s1-eth2 s1-eth3
+## a folder named with current date & time is created and within it files
+## containing the full traffic captured during the execution of the script
+## PS : MAXIMUM 8 Nodes, for more change template of GUI tkinter and variable lengths
 
+# librairies
 from datetime import datetime
 import logging
 import os
@@ -12,6 +19,7 @@ try:
 except ImportError: # Python 3
     import tkinter as tk
 
+# getting nodes to listen to sent within arguments
 nodes_to_listen = sys.argv
 cmds = [None]*(len(sys.argv)-1)
 for i in range(len(sys.argv)):
@@ -21,7 +29,10 @@ for i in range(len(sys.argv)):
 		if sys.argv[i][0] == 's':
 			cmds[i-1] = "./p4app exec tcpdump -i "+str(sys.argv[i])
 
+# main class
 class ShowProcessOutputDemo:
+
+    # initialisation function
     def __init__(self, root,cmd,tex,file_name):
 
         self.root = root
@@ -36,6 +47,7 @@ class ShowProcessOutputDemo:
         self.root.createfilehandler(
             self.proc.stdout, tk.READABLE, self.read_output)
 
+    # function that will be executed when tcpdump command returns a result
     def read_output(self, pipe, mask):
         """Read subprocess' output, pass it to the GUI."""
         data = os.read(pipe.fileno(), 1 << 20)
@@ -43,9 +55,11 @@ class ShowProcessOutputDemo:
         	self.tex.insert(tk.END,data.strip(b'\n').decode() + '\n')
         	self.tex.see("end")
         	file_handle = open(self.file_name, "a")
-        	file_handle.write(data.strip(b'\n').decode() + '\n')
+        	data_to_write = data.decode().replace("\r\n", "\n").replace("\n	0x0000"," - ")
+        	file_handle.write(data_to_write)
         	file_handle.close()
 
+# initialisation of graphic user interface
 root = tk.Tk()
 root.geometry("1000x1000")
 root.title('afdx sniffer')
@@ -54,12 +68,15 @@ root.columnconfigure(1, weight=1)
 root.columnconfigure(2, weight=1)
 root.columnconfigure(3, weight=1)
 
+# creating folder for saving the result log file
 now = datetime.now()
 current_time = now.strftime("%H_%M_%S")
 path = os.getcwd()
 result_folder = path + "/results_"+current_time
 os.mkdir(result_folder)
 
+# creating text areas in the GUI and linking each text area to a certain Command
+# that is executed for a certain node
 var = [None]*8
 label = [None]*8
 tex = [None]*8
@@ -80,5 +97,4 @@ for i in range(8):
 		app = ShowProcessOutputDemo(root,cmds[i],tex[i],f)
 
 root.mainloop()
-
 info('exited')
