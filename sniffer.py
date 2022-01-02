@@ -13,21 +13,35 @@ import logging
 import os
 import sys
 from subprocess import Popen, PIPE, STDOUT
-from tkinter import *
+from tkinter import StringVar, Label, RAISED, Text, Scrollbar
+from shutil import which
+
 try:
-    import Tkinter as tk
-except ImportError: # Python 3
-    import tkinter as tk
+    import Tkinter as tk  # Python 2
+except ImportError:
+    import tkinter as tk  # Python 3
+
+
+# Get the p4 linux command in function of the user environment
+if which('p4app') is not None:
+    # if p4app has been added in the /usr/local/bin/ folder
+    p4_command = "p4app"
+else:
+    # else, p4app has to be in the folder where the check_VLx.sh files are launched
+    p4_command = "./p4app"
+
 
 # getting nodes to listen to sent within arguments
 nodes_to_listen = sys.argv
 cmds = [None]*(len(sys.argv)-1)
 for i in range(len(sys.argv)):
-	if i != 0:
-		if sys.argv[i][0] == 'h':
-			cmds[i-1] = "./p4app exec m "+str(sys.argv[i])+" tcpdump -U"
-		if sys.argv[i][0] == 's':
-			cmds[i-1] = "./p4app exec tcpdump -i "+str(sys.argv[i])
+    if i != 0:
+        if sys.argv[i][0] == 'h':
+            # if node is an host
+            cmds[i-1] = p4_command + " exec m "+str(sys.argv[i])+" tcpdump -U"
+        if sys.argv[i][0] == 's':
+            # if node is a switch
+            cmds[i-1] = p4_command + " exec tcpdump -i "+str(sys.argv[i])
 
 # main class
 class ShowProcessOutputDemo:
@@ -52,12 +66,12 @@ class ShowProcessOutputDemo:
         """Read subprocess' output, pass it to the GUI."""
         data = os.read(pipe.fileno(), 1 << 20)
         if data:  # check if data is piped in
-        	self.tex.insert(tk.END,data.strip(b'\n').decode() + '\n')
-        	self.tex.see("end")
-        	file_handle = open(self.file_name, "a")
-        	data_to_write = data.decode().replace("\r\n", "\n").replace("\n	0x0000"," - ")
-        	file_handle.write(data_to_write)
-        	file_handle.close()
+            self.tex.insert(tk.END,data.strip(b'\n').decode() + '\n')
+            self.tex.see("end")
+            file_handle = open(self.file_name, "a")
+            data_to_write = data.decode().replace("\r\n", "\n").replace("\n	0x0000"," - ")
+            file_handle.write(data_to_write)
+            file_handle.close()
 
 # initialisation of graphic user interface
 root = tk.Tk()
@@ -65,8 +79,8 @@ root.geometry("1000x1000")
 root.title('afdx sniffer')
 root.columnconfigure(0, weight=1)
 root.columnconfigure(1, weight=1)
-root.columnconfigure(2, weight=1)
-root.columnconfigure(3, weight=1)
+# root.columnconfigure(2, weight=1)
+# root.columnconfigure(3, weight=1)
 
 # creating folder for saving the result log file
 now = datetime.now()
@@ -77,24 +91,28 @@ os.mkdir(result_folder)
 
 # creating text areas in the GUI and linking each text area to a certain Command
 # that is executed for a certain node
-var = [None]*8
-label = [None]*8
-tex = [None]*8
-for i in range(8):
-	if i < len(sys.argv)-1:
-		var[i] = StringVar()
-		var[i].set(nodes_to_listen[i+1])
-		label[i] = Label( root, textvariable=var[i], relief=RAISED )
-		label[i].grid(column=int(i/2), row=(2*i)%4, sticky=tk.W, padx=5, pady=5)
-	tex[i] = Text(master=root,height=20)
-	tex[i].config(font=('Arial', 8, 'bold', 'italic'))
-	tex[i].grid(column=int(i/2), row=(2*i+1)%4, sticky=tk.W, padx=5, pady=5)
-	scrollbar = Scrollbar(root, orient='vertical', command=tex[i].yview)
-	scrollbar.grid(column=int(i/2), row=(2*i+1)%4, sticky='NSE')
-	tex[i]['yscrollcommand'] = scrollbar.set
-	if i< len(sys.argv)-1:
-		f = result_folder+"/"+str(sys.argv[i+1])
-		app = ShowProcessOutputDemo(root,cmds[i],tex[i],f)
+var = [None]*len(sys.argv)
+label = [None]*len(sys.argv)
+tex = [None]*len(sys.argv)
+
+for i in range(len(sys.argv)-1):
+    var[i] = StringVar()
+    var[i].set(nodes_to_listen[i+1])
+
+    label[i] = Label(root, textvariable=var[i], relief=RAISED, height=1)
+    label[i].grid(column=0, row=i, sticky=tk.W, padx=5, pady=5)
+
+    tex[i] = Text(master=root,height=5, width=150)
+    tex[i].config(font=('Arial', 8, 'bold', 'italic'))
+    tex[i].grid(column=1, row=i, sticky=tk.W, padx=5, pady=5)
+
+    scrollbar = Scrollbar(root, orient='vertical', command=tex[i].yview, width = 16)
+    scrollbar.grid(column=1, row=i, sticky='NSE')
+
+    tex[i]['yscrollcommand'] = scrollbar.set
+
+    f = result_folder+"/"+str(sys.argv[i+1])
+    app = ShowProcessOutputDemo(root,cmds[i],tex[i],f)
 
 root.mainloop()
-info('exited')
+# info('exited')
