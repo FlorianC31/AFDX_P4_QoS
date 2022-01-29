@@ -6,16 +6,15 @@ PACKET_SIZE = 64
 TABLE_NAME = "afdx_table"
 ACTION_NAME = "Check_VL"
 MC_DUMP = True
+DEFAULT_BAG = 64
 
 _help = """
 Automatic creation p4app files with given topology file
 Launching command: 
 python3 TopoManager.py <input_topo_file> [<destination path>]
 Destination path is current directory by default
-
 Input : 
 - Input topology file (see 'input_topo.txt' as example)
-
 Outputs:
 - topo.txt file (to be added in the p4app package)
 - commands_x.txt file : switch table for each switch (to be added in the p4app package)
@@ -30,6 +29,7 @@ class VirtualLink:
 
         self.id = data_line[0]
         self.paths = []
+        self.bag = DEFAULT_BAG
         self.add_path(data_line)
 
     def add_path(self, data_line):
@@ -37,11 +37,12 @@ class VirtualLink:
          In case of multicast VL, there will be a path by destination host """
 
         if not data_line[-1].isdecimal():
-            # if the max packet size is not defined at the end of the line, all the fields are considered as entities
+            # if the BAG size is not defined at the end of the line, all the fields are considered as entities
             self.paths.append(data_line[1:])
         else:
-            # Else, the last field (max packet size) is ignored
+            # Else, the last field (BAG size) is processed
             self.paths.append(data_line[1:-1])
+            self.bag = data_line[-1]
 
     def print_paths(self):
         """ Print the VL details """
@@ -49,7 +50,7 @@ class VirtualLink:
         print('')
         print('VL_ID:', self.id)
         for path in self.paths:
-            print("-", path)
+            print("-", path, "- BAG:", self.bag)
 
 
 class Switch:
@@ -59,7 +60,6 @@ class Switch:
             Therefore, all the the entity are stored in the 'ports' list :
             - the ports[0] is '-'
             - then, ports[port_id] = connected entity name (switch or host)
-
             The connection dict contains the connexion between ingress port and outgress ports list for each VL
         """
 
@@ -244,7 +244,7 @@ class Topology:
 
         for vl in self.vls:
             with open("check_" + vl + ".sh", 'w') as file:
-                # Calli sniffing script with all the host and switch ports crossed by the current VL
+                # Call sniffing script with all the host and switch ports crossed by the current VL
                 output_line = ["python3", "sniffer.py"]
                 for path in self.vls[vl].paths:
                     for entity in path:
@@ -273,10 +273,11 @@ class Topology:
                 # Send a packet on the source host of the current VL
                 if which('p4app') is not None:
                     # if the p4app has been added in the /usr/local/bin/ folder
-                    file.write("p4app exec m " + host + " python ../tmp/send_afdx_packet.py " + vl + ' ' + host)
+                    p4app_cmd = "p4app"
                 else:
-                    # else, p4app has to be in the folder where the check_VLx.sh files are launched
-                    file.write("./p4app exec m " + host + " python ../tmp/send_afdx_packet.py " + vl + ' ' + host)
+                     # else, p4app has to be in the folder where the check_VLx.sh files are launched
+                    p4app_cmd = "./p4app"
+                file.write(p4app_cmd + " exec m " + host + " python ../tmp/send_afdx_packet.py " + vl + ' ' + host + ' ' + self.vls[vl].bag)
 
     def print(self):
         """ Print the topology details:
