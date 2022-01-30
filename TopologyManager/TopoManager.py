@@ -1,3 +1,6 @@
+## Coded by C.F. as part of ITP EMS 2021-2022
+##
+
 import os
 import sys
 from shutil import which
