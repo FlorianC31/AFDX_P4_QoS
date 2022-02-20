@@ -1,7 +1,5 @@
-## Coded by C.F. as part of ITP EMS 2021-2022
-##
-
 import os
+from queue import PriorityQueue
 import sys
 from shutil import which
 
@@ -10,6 +8,7 @@ TABLE_NAME = "afdx_table"
 ACTION_NAME = "Check_VL"
 MC_DUMP = True
 DEFAULT_BAG = 64
+DEFAULT_PRIO = 1
 
 _help = """
 Automatic creation p4app files with given topology file
@@ -24,6 +23,13 @@ Outputs:
 - check_VLx.sh files to be executed after running p4app to check the VLs
 """
 
+class BagError(Exception):
+    """Exception raised when the defined BAG is not a power of 2 """
+
+    def __init__(self, vl_id, bag_value):
+        self.message = "ERROR: For " + vl_id + ", the BAG=" + bag_value + " is not a power of 2."
+        super().__init__(self.message)
+
 
 class VirtualLink:
 
@@ -33,19 +39,36 @@ class VirtualLink:
         self.id = data_line[0]
         self.paths = []
         self.bag = DEFAULT_BAG
+        self.priority = DEFAULT_PRIO
         self.add_path(data_line)
+        self.check_bag()
 
     def add_path(self, data_line):
         """ Add the VL path details from the data line form topo input file.
          In case of multicast VL, there will be a path by destination host """
 
-        if not data_line[-1].isdecimal():
-            # if the BAG size is not defined at the end of the line, all the fields are considered as entities
-            self.paths.append(data_line[1:])
-        else:
-            # Else, the last field (BAG size) is processed
+        if data_line[-2].isdecimal():
+            # The two last arguments are decimal => BAG and priority are defined in input_topo.txt
+            self.paths.append(data_line[1:-2])
+            self.bag = data_line[-2]
+            self.priority = data_line[-1]
+
+        elif not data_line[-2].isdecimal() and data_line[-1].isdecimal() :
+            # Only the last argument is decimal => only the BAG is defined in input_topo.txt
             self.paths.append(data_line[1:-1])
             self.bag = data_line[-1]
+            self.priority = DEFAULT_PRIO
+            
+        else:
+            # The last argument is not decimal => Neither the BAG nor the priority are defined in input_topo.txt
+            self.paths.append(data_line[1:])
+            self.bag = DEFAULT_BAG
+            self.priority = DEFAULT_PRIO
+
+    def check_bag(self):
+        # check if the BAG is a power of 2
+        if int(self.bag) & (int(self.bag) -1) != 0:
+            raise BagError(self.id, self.bag)
 
     def print_paths(self):
         """ Print the VL details """
@@ -53,7 +76,7 @@ class VirtualLink:
         print('')
         print('VL_ID:', self.id)
         for path in self.paths:
-            print("-", path, "- BAG:", self.bag)
+            print("-", path, "- BAG:", self.bag, "- Priority:", self.priority)
 
 
 class Switch:
@@ -210,10 +233,11 @@ class Topology:
             with open("commands_" + switch[1:] + ".txt", 'w') as file:
                 node_handle = 0
                 group_id = 1
-                for connect in self.switches[switch].connections:
-                    vl_id = str(connect[2:])
-                    ingress_port = str(self.switches[switch].connections[connect]['ingress_port'])
-                    outgress_ports = " ".join(map(str, self.switches[switch].connections[connect]['outgress_port']))
+                for vl_connect in self.switches[switch].connections:
+                    priority=self.vls[vl_connect].priority
+                    vl_id = str(vl_connect[2:])  # Removing 'VL' label and keeping only the number 
+                    ingress_port = str(self.switches[switch].connections[vl_connect]['ingress_port'])
+                    outgress_ports = " ".join(map(str, self.switches[switch].connections[vl_connect]['outgress_port']))
 
                     mc_mgrp_create_line = ("mc_mgrp_create", str(group_id), '\n')
                     table_add_line = ("table_add",
@@ -224,6 +248,7 @@ class Topology:
                                       "=>",
                                       str(PACKET_SIZE),
                                       str(group_id),
+                                      str(priority),
                                       '\n')
                     mc_node_create_line = ("mc_node_create", str(node_handle), outgress_ports, '\n')
                     mc_node_associate_line = ("mc_node_associate", str(group_id), str(node_handle), '\n')
@@ -312,3 +337,6 @@ if __name__ == "__main__":
 
     except ValueError:
         print("ERROR: missing argument" + _help)
+
+    except BagError as e:
+        print(e)
