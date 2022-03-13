@@ -19,8 +19,34 @@ General Info:
 - wlan0/bridge0 is port 0
 - ethernet/bridge1/bridge2 is port 1
 
-- It's possible to add a usb to ethernet device and connect it to the P4Switch using the same idea (linux bridge)
-	not tested yet.
+- It's possible to add a usb to ethernet device and connect it to the P4Switch using the same idea (linux bridge):
+	1/Connect the USB to Ethernet device to the PI
+	2/run command "ip addr" to get the name of the new ethernet device
+	3/Setup a new virtual ethernet device with these commands (these cmds can be set up in a sh script):
+		a) ip link add dev "devName" type veth peer name "peerName"
+		b) ip link set dev "devName" address "mac_address"
+		c) ip link set dev "peerName" address "mac_address"
+		d) ip link st dev veth2 up
+		e) ethtool -K "devName" tx off
+		f) ethtool -K "peerName" tx off
+	4/Setup a new bridge (the easiest is to integrated these steps in the script setup_eth_wlan_bridge.sh):
+		a) ip link set dev "peerName" up
+		b) brctl addbr "bridgeName"
+		c) brctl setageing "bridgeName" 0
+		d) ip link set dev "bridgeName" up
+	Connect the bridge to the virtual ethernet and the usb ethernet devices:
+		a) brctl addif "bridgeName" "usbDeviceName"
+		b) brctl addif "devName"
+	Assign IP from external DHCP server:
+		a) dhclient "bridgeName"
+	
+	5/Add the new port to T4P4S configuration (file opts-dpdk.cfg):
+		a) Add the following to pieal options:
+			--vdev net_pcap"Number",rx_iface_in="devName",tx_iface="devName",tx_iface="devName"
+		b) in line piports (should be the line just after), modify the bitmask to activate the needed number of ports:
+			Example : 
+				OLD : -p 0x3 => 0011 : ports 0 and 1 are active
+				NEW : -p 0x7 => 0111 : ports 0, 1 and 2 are active
 
 P4RT Shell cmds: link https://github.com/p4lang/p4runtime-shell
 	tables: print available tables
