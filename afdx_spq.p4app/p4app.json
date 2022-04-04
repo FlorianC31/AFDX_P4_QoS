@@ -1,0 +1,15 @@
+{
+    "program": "afdx.p4",
+    "language": "p4-16",
+    "targets": {
+	"custom": {
+	       "program": "topo.py",
+	      "hosts": {
+		"h1": {
+		    "cmd": "python send_h1.py",
+		    "wait": false
+		}
+	      }
+	}
+    }
+}
