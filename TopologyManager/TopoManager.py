@@ -9,7 +9,7 @@ from shutil import which
 PACKET_SIZE = 64
 TABLE_NAME = "afdx_table"
 ACTION_NAME = "Check_VL"
-MC_DUMP = True
+MININET_MC_DUMP = True
 DEFAULT_BAG = 64
 DEFAULT_PRIO = 1
 
@@ -229,8 +229,12 @@ class Topology:
             for connect in self.connections:
                 file.write(str(' '.join(connect)) + '\n')
 
-    def write_switch_cmd_files(self):
-        """ Creation of the command.txt file for each switch for the p4app input package """
+    def write_switch_cmd_files(self, output_type):
+        """ Creation of the command.txt file for each switch for the p4app input package
+            Input : "output_type":
+            - 1 -> Mininet p4app
+            - 2 -> Raspberry P4PI    
+        """
 
         for switch in self.switches:
             with open("commands_" + switch[1:] + ".txt", 'w') as file:
@@ -242,30 +246,39 @@ class Topology:
                     ingress_port = str(self.switches[switch].connections[vl_connect]['ingress_port'])
                     outgress_ports = " ".join(map(str, self.switches[switch].connections[vl_connect]['outgress_port']))
 
-                    mc_mgrp_create_line = ("mc_mgrp_create", str(group_id), '\n')
-                    table_add_line = ("table_add",
-                                      TABLE_NAME,
-                                      ACTION_NAME,
-                                      ingress_port,
-                                      vl_id,
-                                      "=>",
-                                      str(PACKET_SIZE),
-                                      str(group_id),
-                                      str(priority),
-                                      '\n')
-                    mc_node_create_line = ("mc_node_create", str(node_handle), outgress_ports, '\n')
-                    mc_node_associate_line = ("mc_node_associate", str(group_id), str(node_handle), '\n')
+                    if output_type==1:
+                        mc_mgrp_create_line = ("mc_mgrp_create", str(group_id), '\n')
+                        table_add_line = ("table_add",
+                                        TABLE_NAME,
+                                        ACTION_NAME,
+                                        ingress_port,
+                                        vl_id,
+                                        "=>",
+                                        str(PACKET_SIZE),
+                                        str(group_id),
+                                        str(priority),
+                                        '\n')
+                        mc_node_create_line = ("mc_node_create", str(node_handle), outgress_ports, '\n')
+                        mc_node_associate_line = ("mc_node_associate", str(group_id), str(node_handle), '\n')
 
-                    file.write(" ".join(mc_mgrp_create_line))
-                    file.write(" ".join(table_add_line))
-                    file.write(" ".join(mc_node_create_line))
-                    file.write(" ".join(mc_node_associate_line))
-                    file.write('\n')
+                        file.write(" ".join(mc_mgrp_create_line))
+                        file.write(" ".join(table_add_line))
+                        file.write(" ".join(mc_node_create_line))
+                        file.write(" ".join(mc_node_associate_line))
+                        file.write('\n')
 
-                    node_handle += 1
-                    group_id += 1
+                        node_handle += 1
+                        group_id += 1
+                    
+                    elif output_type==2:
+                        line = "0x0" + ingress_port
 
-                if MC_DUMP:
+                if MININET_MC_DUMP and output_type==1:
+                    if ingress_port<10:
+                        in_port="0x0" + ingress_port + "00"
+                    else:
+                        in_port="0x" + ingress_port + "00"
+
                     file.write("mc_dump\n")
 
     def write_check_files(self):
@@ -336,7 +349,8 @@ if __name__ == "__main__":
         os.chdir(dest_path)
         new_topo.write_topo_file("topo.txt")  # Write the topo file for p4app
         new_topo.write_check_files()  # Write all the check_vl.sh files to check the VL
-        new_topo.write_switch_cmd_files()  # Write de command.txt table for each switch (for p4app)
+        # new_topo.write_switch_cmd_files(1)  # Write de command.txt table for each switch for p4app (Mininet)
+        new_topo.write_switch_cmd_files(2)  # Write de command.txt table for each switch for p4pi (Raspberry PI)
 
     except ValueError:
         print("ERROR: missing argument" + _help)
