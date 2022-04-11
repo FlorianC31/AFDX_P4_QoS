@@ -9,7 +9,7 @@ Launching command:
 python3 TopoManager.py <input_topo_file> [<destination path>]
 Destination path is current directory by default
 Input : 
-- Input topology file (see 'input_topo.txt' as example)+
+- Input topology file (see 'input_topo.txt' as example)
 - Output platform : 1 for p4app on mininet, 2 for p4pi on Raspberry
 - [optional] destination path for the output files (default value, same repertory as the script) 
 Outputs:
