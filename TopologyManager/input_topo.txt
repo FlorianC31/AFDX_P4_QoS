@@ -24,8 +24,7 @@ VL8,h2,s2,h6,64,6
 VL9,h3,s3,h5,64,5
 --stop
 
-Port mapping (for p4pi physical coànfiguration only, not p4app)
-host_name, PC_name, eth_interface_name
+Port mapping (for physical configuration only: p4pi or t4p4s, not p4app): host_name,PC_name,eth_interface_name
 --start
 h1,PC1,eth0
 h2,PC1,eth1
