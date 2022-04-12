@@ -60,10 +60,10 @@ class ShowProcessOutputDemo:
    		data_parsed = ""
    		for line in data_to_parse.split("\n"):
    			if line[0:16] != "tcpdump: verbose" and line[0:9] != "listening"  and not("(invalid)" in line[0:16]):
-   				if " " in line[0:16]:
+   				if ":" in line[0:16]:
    					data_parsed = data_parsed + line[0:15] + "," + self.vl + ","
-   				elif ":" in line[0:14]:
-   					data_parsed = data_parsed + line[0:14] + "\n" 
+   				else:
+   					data_parsed = data_parsed + line[0:14] + "\n"
    		return data_parsed
     
     # function that will be executed when tcpdump command returns a result
