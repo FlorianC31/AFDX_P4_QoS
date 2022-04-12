@@ -61,10 +61,10 @@ int main(int argc, char *argv[])
 	/* Construct the Ethernet header */
 	memset(sendbuf, 0, BUF_SIZ);
 	/* Ethernet header */
-	eh->ether_shost[0] = 0x00;
+	eh->ether_shost[0] = 0x02;
 	eh->ether_shost[1] = 0x00;
 	eh->ether_shost[2] = 0x00;
-	eh->ether_shost[3] = 0x02;
+	eh->ether_shost[3] = 0x00;
 	eh->ether_shost[4] = 0x00;
 	eh->ether_shost[5] = 0x00;
 	eh->ether_dhost[0] = MY_DEST_MAC0;
