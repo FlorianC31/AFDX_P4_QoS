@@ -2,7 +2,6 @@
 ##
 
 import os
-from queue import PriorityQueue
 import sys
 from shutil import which
 
@@ -27,41 +26,58 @@ DEFAULT_PRIO = 1
 # For P4PI : Call of the action function with params
 PI_ACTION_FCT = "Check_VL"
 
+# Default number of packets to be send in test
+NB_PACKETS = 1000
+
+# Priority management for Mininet p4app
+P4APP_PRIORITY = False
+
+
 _help = """
 Automatic creation switch command and VL check files with given topology file.
 Launching command: 
-python3 TopoManager.py <input_topo_file> [<destination path>]
+python3 TopoManager.py <input_topo_file> <platform_type> [<destination path>]
 Destination path is current directory by default
-Input : 
+Inputs: 
 - Input topology file (see 'input_topo.txt' as example)
-- Output platform : 1 for p4app on mininet, 2 for p4pi on Raspberry
+- Platform type: 'p4app' for mininet, 'p4pi' for Raspberry, 't4p4s' for PC
 - [optional] destination path for the output files (default value, same repertory as the script) 
 Outputs:
-- topo.txt file (to be added in the p4app package)
-- commands_x.txt file : switch table for each switch (to be added in the p4app package)
-- check_VLx.sh files to be executed after running p4app to check the VLs
+- commands_x.txt : switch table for each switch
+- check VL file : sniffer + packet sender for each VL
+- topo.txt file (only for p4app) : to be added in the p4app package
 """
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 
 class BagError(Exception):
     """Exception raised when the defined BAG is not a power of 2 """
 
     def __init__(self, vl_id, bag_value):
-        self.message = "ERROR: For " + vl_id + ", the BAG=" + bag_value + " is not a power of 2."
+        self.message = "For " + vl_id + ", the BAG=" + bag_value + " is not a power of 2. Check input topo file."
         super().__init__(self.message)
 
 
 class InputError(Exception):
-    """Exception raised for input error"""
-
     def __init__(self, msg):
+        """Exception raised for input error"""
         self.message = msg
         super().__init__(self.message)
 
-class VirtualLink:
 
+class VirtualLink:
     def __init__(self, data_line):
         """ Class containing the Virtual links Data """
-
         self.id = data_line[0]
         self.paths = []
         self.bag = DEFAULT_BAG
@@ -100,7 +116,7 @@ class VirtualLink:
         """ Print the VL details """
 
         print('')
-        print('VL_ID:', self.id)
+        print(f"{bcolors.HEADER}{bcolors.BOLD}VL_ID:{bcolors.ENDC}", f"{bcolors.OKBLUE}" + self.id + f"{bcolors.ENDC}")
         for path in self.paths:
             print("-", path, "- BAG:", self.bag, "- Priority:", self.priority)
 
@@ -108,15 +124,14 @@ class VirtualLink:
 class Switch:
     def __init__(self, switch_id, distant_entity):
         """ Class containing the switches Data
-            Each entity connected to the switch is attributed to a port number from 1.
+            Each entity connected to the switch is attributed to a port number from 0.
             Therefore, all the the entity are stored in the 'ports' list :
-            - the ports[0] is '-'
-            - then, ports[port_id] = connected entity name (switch or host)
+                - ports[port_id] = connected entity name (switch or host)
             The connection dict contains the connexion between ingress port and outgress ports list for each VL
         """
 
         self.id = switch_id
-        self.ports = ['', distant_entity]  # Creation of the port list with the first entity
+        self.ports = [distant_entity]  # Creation of the port list with the first entity
         self.connections = {}  #
 
     def add_port(self, distant_entity):
@@ -148,15 +163,16 @@ class Switch:
         """
 
         print('')
-        print('Switch:', self.id)
+        print(f"{bcolors.HEADER}{bcolors.BOLD}Switch:{bcolors.ENDC}", f"{bcolors.OKBLUE}" + self.id + f"{bcolors.ENDC}")
+        print("- Ports list:", self.ports)
         i = 0
         for port in self.ports[1:]:
             i += 1
-            print("- " + self.id + "-eth" + str(i) + ": " + port)
+            print("- " + self.id + "-port" + str(i) + ": " + port)
 
         for connect in self.connections:
             outgress_list = "/".join(map(str, self.connections[connect]['outgress_port']))
-            print(connect + ": eth" + str(self.connections[connect]['ingress_port']) + "->eth" + outgress_list)
+            print(connect + ": port" + str(self.connections[connect]['ingress_port']) + "->port" + outgress_list)
 
 
 class Topology:
@@ -204,8 +220,6 @@ class Topology:
             while not line.startswith("--stop") and line != '':
                 self.read_mapping(line.strip())
                 line = topo_file.readline()
-            print("Mapping:", self.mapping)
-
 
     def read_link(self, data_line):
         """ Reading links in topo input file
@@ -264,82 +278,6 @@ class Topology:
             for vl in self.vls:
                 self.switches[switch].add_connection(self.vls[vl])
 
-    def write_topo_file(self, filename):
-        """ Creation of the topo file to be given in input in the p4app package """
-
-        with open(filename, 'w') as file:
-            file.write("switches " + str(len(self.switches)) + '\n')
-            file.write("hosts " + str(len(self.hosts)) + '\n')
-
-            for connect in self.connections:
-                file.write(str(' '.join(connect)) + '\n')
-
-    def write_switch_cmd_files(self, output_type):
-        """ Creation of the command.txt file for each switch for the p4app input package
-            Input : "output_type":
-            - 1 -> Mininet p4app
-            - 2 -> Raspberry P4PI    
-        """
-
-        for switch in self.switches:
-            if output_type==1:
-                command_file = "commands_"
-            elif output_type==2:
-                command_file = "p4pi_switch"
-
-            with open(command_file  + switch[1:] + ".txt", 'w') as file:
-                node_handle = 0
-                group_id = 1
-                for vl_connect in self.switches[switch].connections:
-                    priority=self.vls[vl_connect].priority
-                    vl_id = str(vl_connect[2:])  # Removing 'VL' label and keeping only the number 
-                    ingress_port = str(self.switches[switch].connections[vl_connect]['ingress_port'])
-                    outgress_ports = " ".join(map(str, self.switches[switch].connections[vl_connect]['outgress_port']))
-                    outgress_port0 = str(self.switches[switch].connections[vl_connect]['outgress_port'][0])  # Take only the first port of the list (no multicasting)
-
-                    if output_type==1:
-                        mc_mgrp_create_line = ("mc_mgrp_create", str(group_id), '\n')
-                        table_add_line = ("table_add",
-                                        TABLE_NAME,
-                                        ACTION_NAME,
-                                        ingress_port,
-                                        vl_id,
-                                        "=>",
-                                        str(PACKET_SIZE),
-                                        str(group_id),
-                                        str(priority),
-                                        '\n')
-                        mc_node_create_line = ("mc_node_create", str(node_handle), outgress_ports, '\n')
-                        mc_node_associate_line = ("mc_node_associate", str(group_id), str(node_handle), '\n')
-
-                        file.write(" ".join(mc_mgrp_create_line))
-                        file.write(" ".join(table_add_line))
-                        file.write(" ".join(mc_node_create_line))
-                        file.write(" ".join(mc_node_associate_line))
-                        file.write('\n')
-
-                        node_handle += 1
-                        group_id += 1
-                    
-                    elif output_type==2:
-                        if int(ingress_port)<10:
-                            ingress_port="0x0" + ingress_port + "00"
-                        else:
-                            ingress_port="0x" + ingress_port + "00"
-
-                        if int(vl_id)<10:
-                            vl_id ="0x0" + vl_id
-                        else:
-                            vl_id="0x" + vl_id
-
-                        line = "(" + ingress_port + ", " + vl_id + ") : " + PI_ACTION_FCT + "(" + str(PACKET_SIZE) + ", " + outgress_port0 + ");"
-                        file.write(line)
-                        file.write('\n')
-                        
-
-                if MININET_MC_DUMP and output_type==1:
-                    file.write("mc_dump\n")
-
     def check_mapping(self):
         """ checking if the port maipping has been correclty defined in the topo input file:
         - each host has to be defined
@@ -368,71 +306,199 @@ class Topology:
         if len(duplicates)>0:
             raise InputError("Some duplicate interfaces have been found in the port mapping in input topo file:\n" + "\n".join(duplicates))
 
+        print('')
+        print(f"{bcolors.HEADER}{bcolors.BOLD}Physical port mapping:{bcolors.ENDC}", self.mapping)
 
-    def write_check_files(self, output_type):
-        """ Writing of checking script for each VL. These scripts perform 2 actions :
+    def write_topo_file(self, filename):
+        """ Creation of the topo file to be given in input in the p4app package """
+
+        with open(filename, 'w') as file:
+            file.write("switches " + str(len(self.switches)) + '\n')
+            file.write("hosts " + str(len(self.hosts)) + '\n')
+
+            for connect in self.connections:
+                file.write(str(' '.join(connect)) + '\n')
+
+    def write_switch_cmd_files_p4app(self):
+        """ Creation of the command.txt file for each switch for the p4app input package """
+        
+        switch_list = []
+        for switch in self.switches:
+            switch_list.append("'commands_"  + switch[1:] + ".txt'")
+            with open("commands_"  + switch[1:] + ".txt", 'w') as file:
+                node_handle = 0
+                group_id = 1
+                for vl_connect in self.switches[switch].connections:
+                    priority=self.vls[vl_connect].priority
+                    vl_id = str(vl_connect[2:])  # Removing 'VL' label and keeping only the number 
+
+                    # for p4app, ports have to be numbered from 1 instead of from 0: therefore +1 is added in the in/out ports numbers
+                    ingress_port = str(self.switches[switch].connections[vl_connect]['ingress_port']+1)
+                    outgress_ports = " ".join(map(str, [i + 1 for i in self.switches[switch].connections[vl_connect]['outgress_port']]))
+
+                    mc_mgrp_create_line = ("mc_mgrp_create", str(group_id), '\n')
+                    table_add_line = ["table_add",
+                                    TABLE_NAME,
+                                    ACTION_NAME,
+                                    ingress_port,
+                                    vl_id,
+                                    "=>",
+                                    str(PACKET_SIZE),
+                                    str(group_id),
+                                    str(priority),
+                                    '\n']
+
+                    # if the priority management is disable, the priority is removed from the line
+                    if not P4APP_PRIORITY:
+                        del table_add_line[-2]
+
+                    mc_node_create_line = ("mc_node_create", str(node_handle), outgress_ports, '\n')
+                    mc_node_associate_line = ("mc_node_associate", str(group_id), str(node_handle), '\n')
+
+                    file.write(" ".join(mc_mgrp_create_line))
+                    file.write(" ".join(table_add_line))
+                    file.write(" ".join(mc_node_create_line))
+                    file.write(" ".join(mc_node_associate_line))
+                    file.write('\n')
+
+                    node_handle += 1
+                    group_id += 1
+
+                if MININET_MC_DUMP:
+                    file.write("mc_dump\n")
+
+        if len(switch_list) > 0:
+            print('')
+            print(f"{bcolors.HEADER}{bcolors.BOLD}NOTICE (for output files):{bcolors.ENDC}")
+            if len(switch_list) == 1:
+                print(" - " + ", ".join(switch_list) + " file has to be included in the p4app package for Mininet).")
+            else:
+                print(" - " + ", ".join(switch_list) + " files have to be included in the p4app package for Mininet).")
+
+    def write_switch_cmd_files_linux(self, platform_type):
+        """ Creation of the command.txt file for each switch for the p4app input package
+            Input : "platform_type"
+        """
+
+        switch_list = []
+        for switch in self.switches:
+            switch_list.append("'switch"  + switch[1:] + ".txt'")     
+            with open("switch"  + switch[1:] + ".txt", 'w') as file:
+                node_handle = 0
+                group_id = 1
+                for vl_connect in self.switches[switch].connections:
+                    priority=self.vls[vl_connect].priority
+                    vl_id = str(vl_connect[2:])  # Removing 'VL' label and keeping only the number 
+
+                    ingress_port = str(self.switches[switch].connections[vl_connect]['ingress_port'])   
+                    outgress_port0 = str(self.switches[switch].connections[vl_connect]['outgress_port'][0])  # Take only the first port of the list (no multicasting)
+
+                    if int(ingress_port)<10:
+                        ingress_port="0x0" + ingress_port + "00"
+                    else:
+                        ingress_port="0x" + ingress_port + "00"
+
+                    if int(vl_id)<10:
+                        vl_id ="0x0" + vl_id
+                    else:
+                        vl_id="0x" + vl_id
+                    if platform_type == 't4p4s':
+                        vl_id = vl_id + "00"
+
+                    line = "(" + ingress_port + ", " + vl_id + ") : " + PI_ACTION_FCT + "(" + str(PACKET_SIZE) + ", " + outgress_port0 + ");"
+                    file.write(line)
+                    file.write('\n')
+
+        if len(switch_list) > 0:
+            print('')
+            print(f"{bcolors.HEADER}{bcolors.BOLD}NOTICE (for output files):{bcolors.ENDC}")
+            if len(switch_list) == 1:
+                print(" - " + ", ".join(switch_list) + " file has to be included in the afdx.p4 file for " + platform_type + ").")
+            else:
+                print(" - " + ", ".join(switch_list) + " files have to be included in the afdx.p4 file for " + platform_type + ").")
+                        
+    def write_check_files_p4app(self):
+        """ Writing of checking script for each VL for p4app platform. These scripts perform 2 actions :
         - Calling sniffing script with all the host and switch ports crossed by the current VL
         - Sending a packet on the source host of the current VL """
 
-
-        # For p4app
-        if output_type==1:
-            for vl in self.vls:
-                with open("check_" + vl + ".sh", 'w') as file:
-                    # Call sniffing script with all the host and switch ports crossed by the current VL
-                    output_line = ["python3", "sniffer.py"]
-                    for path in self.vls[vl].paths:
-                        for entity in path:
-                            if entity[0] == 's':  # if the entity is a switch
-                                # Ingress interface
-                                previous_entity = path[path.index(entity) - 1]
-                                ingress_port = self.switches[entity].ports.index(previous_entity)
-                                ingress = entity + "-eth" + str(ingress_port)
-                                if ingress not in output_line:
-                                    output_line.append(ingress)
-
-                                # Outgress interface
-                                next_entity = path[path.index(entity) + 1]
-                                outgress_port = self.switches[entity].ports.index(next_entity)
-                                outgress = entity + "-eth" + str(outgress_port)
-                                if outgress not in output_line:
-                                    output_line.append(outgress)
-
-                            else:  # if it's a host
-                                if entity not in output_line:
-                                    output_line.append(entity)
-                    file.write(" ".join(output_line[:10]))
-                    file.write(" &\n")
-                    host = self.vls[vl].paths[0][0]
-
-                    # Send a packet on the source host of the current VL
-                    if which('p4app') is not None:
-                        # if the p4app has been added in the /usr/local/bin/ folder
-                        p4app_cmd = "p4app"
-                    else:
-                        # else, p4app has to be in the folder where the check_VLx.sh files are launched
-                        p4app_cmd = "./p4app"
-                    file.write(p4app_cmd + " exec m " + host + " python ../tmp/send_afdx_packet.py " + vl + ' ' + host + ' ' + self.vls[vl].bag)
-
-        # For p4pi
-        elif output_type==2:
-            pc_dict={}
-            for vl in self.vls:
+        for vl in self.vls:
+            with open("check_" + vl + ".sh", 'w') as file:
+                # Call sniffing script with all the host and switch ports crossed by the current VL
+                output_line = ["python3", "sniffer_mininet.py"]
                 for path in self.vls[vl].paths:
-                    host=path[0]
-                    pc, eth = self.mapping[host]
-                    if pc not in pc_dict:
-                        pc_dict[pc]=[eth + "_" + str(vl[2:])]
-                    else:
-                        pc_dict[pc].append(eth + "_" + str(vl[2:]))
-        
-            for pc in pc_dict:
-                with open("check_" + pc + ".sh", 'w') as file:
-                    file.write("python3 sniffer.py " + " ".join(pc_dict[pc]))
+                    for entity in path:
+                        if entity[0] == 's':  # if the entity is a switch
+                            # Ingress interface
+                            previous_entity = path[path.index(entity) - 1]
+                            ingress_port = self.switches[entity].ports.index(previous_entity)
+                            ingress = entity + "-eth" + str(ingress_port + 1)  # +1: Ports are numbered from 1 in p4app instead of 0
+                            if ingress not in output_line:
+                                output_line.append(ingress)
+
+                            # Outgress interface
+                            next_entity = path[path.index(entity) + 1]
+                            outgress_port = self.switches[entity].ports.index(next_entity)
+                            outgress = entity + "-eth" + str(outgress_port + 1)  # +1: Ports are numbered from 1 in p4app instead of 0
+                            if outgress not in output_line:
+                                output_line.append(outgress)
+
+                        else:  # if it's a host
+                            if entity not in output_line:
+                                output_line.append(entity)
+                file.write(" ".join(output_line[:10]))
+                file.write(" &\n")
+                host = self.vls[vl].paths[0][0]
+
+                # Send a packet on the source host of the current VL
+                if which('p4app') is not None:
+                    # if the p4app has been added in the /usr/local/bin/ folder
+                    p4app_cmd = "p4app"
+                else:
+                    # else, p4app has to be in the folder where the check_VLx.sh files are launched
+                    p4app_cmd = "./p4app"
+                file.write(p4app_cmd + " exec m " + host + " python ../tmp/send_afdx_packet.py " + vl + ' ' + host + ' ' + self.vls[vl].bag)
             
-            print(pc_dict)
+            print(" - 'check_" + vl + ".sh' has to be launched on a terminal (outside Mininet) to check " + vl + " (send and monitor packets).")
 
+    def write_check_files_linux(self):
+        """ Writing of checking script for each VL for linux platforms (t4p4s and p4pi). These scripts perform 2 actions :
+        - Calling sniffing script with all the host and switch ports crossed by the current VL
+        - Sending a packet on the source host of the current VL """
 
+        pc_dict = {}
+        nic_dict = {}
+        for vl in self.vls:
+            for path in self.vls[vl].paths:
+                pc_host, eth_host = self.mapping[path[0]]
+                pc_dest, eth_dest = self.mapping[path[-1]]
+
+                sniffer_host_data =  eth_host + "_" + str(vl[2:])
+                sniffer_dest_data =  eth_dest + "_" + str(vl[2:])
+                sender_data = {'vl': vl, 'eth': eth_host}
+
+                if pc_host not in pc_dict:
+                    pc_dict[pc_host] = {'sniffer_data': [sniffer_host_data], 'sender_data': [sender_data]}
+                else:
+                    pc_dict[pc_host]['sniffer_data'].append(sniffer_host_data)
+                    pc_dict[pc_host]['sender_data'].append(sender_data)
+
+                if pc_dest not in pc_dict:
+                    pc_dict[pc_dest] = {'sniffer_data': [sniffer_dest_data], 'sender_data': []}
+                else:
+                    pc_dict[pc_dest]['sniffer_data'].append(sniffer_dest_data)
+    
+        for pc in pc_dict:
+            with open("sniffer_" + pc + ".sh", 'w') as file:
+                file.write("python3 sniffer_linux.py " + " ".join(pc_dict[pc]['sniffer_data']))
+            print(" - 'sniffer_" + pc + ".sh' has to be launched on " + pc + " to monitor all packets exiting and arriving on this PC.")
+
+            for host in pc_dict[pc]['sender_data']:
+                vl = host['vl']                
+                with open("send_afdx_packet_" + pc + "_" + vl + ".sh", 'w') as file:
+                    file.write("python3 send_afdx_packet_linux.py " + vl[2:] + " " + host['eth'] + " " + str(self.vls[vl].bag) + " " + str(NB_PACKETS))
+                print(" - 'send_afdx_packet_" + pc + "_" + vl + ".sh' has to be launched on " + pc + " to send packets on " + vl + ".")
+            
     def print(self):
         """ Print the topology details:
         - Physical connections
@@ -440,7 +506,7 @@ class Topology:
         - Switches details
         """
 
-        print("Physical connections :", self.connections)
+        print(f"{bcolors.HEADER}{bcolors.BOLD}Physical connections:{bcolors.ENDC}", self.connections)
         for vl in self.vls:
             self.vls[vl].print_paths()
 
@@ -448,35 +514,45 @@ class Topology:
             self.switches[switch].print()
 
 
-def check_output_type(output_type):
-    """ check if the output type is well defined (1 or 2) only"""
-    if output_type!='1' and output_type!='2':
-        raise InputError("output_type=" + str(output_type) + " - The output type of the write_switch_cmd_files has to be 1 for p4app or 2 for p4pi")
+def check_platform_type(platform_type):
+    """ check if the output type is well defined (1, 2 or 3) only"""
+    if platform_type not in ('p4app', 'p4pi', 't4p4s'):
+        raise InputError("platform_type=" + platform_type + " - The output type of the write_switch_cmd_files has to be 'p4app', 'p4pi' or 't4p4s'")
 
 
 if __name__ == "__main__":
     try:
-        script_name, topo_input_file, output_type, *_ = sys.argv
-        dest_path = sys.argv[-1] if sys.argv[-1] != output_type else '.'
+        script_name, topo_input_file, platform_type, *_ = sys.argv
+        if len(sys.argv) == 4:
+            dest_path = sys.argv[3]
+            try:
+                os.makedirs(dest_path)
+            except FileExistsError:
+                pass
+        else:
+            dest_path = '.'
 
-        check_output_type(output_type)
-        output_type=int(output_type)
+        check_platform_type(platform_type)
 
         new_topo = Topology(topo_input_file)  # Creation of the topology structure
         new_topo.print()  # Print the topology in console
 
         os.chdir(dest_path)
-        new_topo.write_topo_file("topo.txt")  # Write the topo file for p4app
-        new_topo.write_check_files(output_type)  # Write all the check_vl.sh files to check the VL
-        new_topo.write_switch_cmd_files(output_type)  # Write de command.txt table for each switch
-        if output_type==2:
-            new_topo.check_mapping()
+
+        if platform_type == 'p4app':
+            new_topo.write_switch_cmd_files_p4app()  # Write de command.txt table for each switch
+            new_topo.write_topo_file("topo.txt")  # Write the topo file for p4app
+            new_topo.write_check_files_p4app()
+        else:
+            new_topo.check_mapping()  # Check the consistency of the port mapping
+            new_topo.write_switch_cmd_files_linux(platform_type)  # Write de command.txt table for each switch
+            new_topo.write_check_files_linux()
 
     except ValueError:
-        print("ERROR: missing argument" + _help)
+        print(f"{bcolors.FAIL}ERROR: missing argument{bcolors.ENDC}" + _help)
 
     except BagError as e:
-        print(e)
+        print(f"{bcolors.FAIL}INPUT BAG ERROR: {bcolors.ENDC}", e)
 
     except InputError as e:
-        print("INPUT ERROR:", e)
+        print(f"{bcolors.FAIL}INPUT ERROR: {bcolors.ENDC}", e)
