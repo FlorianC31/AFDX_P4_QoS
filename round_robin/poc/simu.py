@@ -27,7 +27,9 @@ def default_settings():
     # how many messages in total
     settings['count'] = 42
     # span for burst random sizes
-    settings['rnd_range'] = (3, 10)
+    settings['burst-range'] = (3, 10)
+    # span for after burst transmition
+    settings['trsmit-range'] = (10, 11)
 
 class Msg:
     class StdMeta:
@@ -61,7 +63,6 @@ class DumbSwitch(Switch):
     def outgoing(self) -> Msg:
         return self.infinit_queue.pop(0) if self.infinit_queue else None
 
-# XXX: something is wrong, it does not transmit every messages
 class TrueRRSwitch(Switch):
     """ correct (maybe) implementation of the round robin """
     def __init__(self):
@@ -111,7 +112,24 @@ class PseudoRRSwitch(Switch):
         self.queues: 'list[list[Msg]]' = [[] for _ in range(settings['NB_Q'])]
 
     def __repr__(self):
-        return "PseudoRR switch, usage: " + str(self.usage)
+        """ /!\\ for debug purpose """
+        head = "    "
+        body = [f"{q: 3} " for q in range(settings['NB_Q'])]
+
+        for (vl, can) in enumerate(settings['VL_N']):
+            head+= f"| {vl: 3} "
+            for q in range(settings['NB_Q']):
+                body[q]+= f"| {self.usage[vl][q]}/{can} "
+
+        for q in range(settings['NB_Q']):
+            body[q]+= "  ["
+            body[q]+= ", ".join(str(msg.vl) for msg in self.queues[q])
+            body[q]+= "]"
+
+        sep = "\n" + "-"*len(head) + "\n"
+        table = head + sep + sep.join(body)
+
+        return f"PseudoRR switch, usage:\n{table}"
 
     def incoming(self, msg: Msg):
         self._ingress(msg)
@@ -137,14 +155,37 @@ class PseudoRRSwitch(Switch):
         """
         for q in range(settings['NB_Q']):
             if self.usage[msg.vl][q] < settings['VL_N'][msg.vl]:
+                # count = sum(1
+                #     for mate in self.queues[q]
+                #     if msg.vl == mate.vl
+                # )
+                # assert count == self.usage[msg.vl][q], f"{count} == {self.usage[msg.vl][q]}"
                 # can here, use 1 on this queue
                 self.usage[msg.vl][q]+= 1
                 msg.std_meta.prio = q
                 return
             # cannot here, try next
             continue
-        # could not, panic
-        assert False
+
+        # could not, multiple behavior may be fdbsfbds
+
+        # panic (initial implementation)
+        #assert False
+
+        # enabling over-usage of the last queue
+        # (trades fairness for preserved packet ordering)
+        self.usage[msg.vl][q]+= 1
+        msg.std_meta.prio = q
+
+        # cycle to first priority queue
+        # (does not assume on the queues' capacities,
+        # but loses packet ordering to /try/ to keep a
+        # rr- fairness)
+        #self._egress(msg, turn+1)
+        # `turn` as a parameter (default value 1) would multiply
+        # `usage` in the comparison inside the `for` above
+        # easiest way to implement in p4 /might/ be recirculate
+        # or something
 
     def _egress(self, msg: Msg):
         """
@@ -155,8 +196,21 @@ class PseudoRRSwitch(Switch):
         """
         assert 0 < self.usage[msg.vl][msg.std_meta.prio]
 
-        # for now simply caps off at NB_Q
-        below = min(msg.std_meta.prio+1, settings['NB_Q']-1)
+        # 'below' as in priority-wise
+        below = msg.std_meta.prio + 1
+
+        # if this is already the least prio queue (nothing below)
+        if below == settings['NB_Q']:
+            # is tail, check, free 1 on it
+            self.usage[msg.vl][msg.std_meta.prio]-= 1
+
+            # was the last pending message, reset
+            if 0 == self.usage[msg.vl][msg.std_meta.prio]:
+                for above in range(msg.std_meta.prio):
+                    self.usage[msg.vl][above] = 0
+            return
+
+        # else if this is any other queue but the last one
         if 0 == self.usage[msg.vl][below]:
             # is tail, free 1 on this queue
             self.usage[msg.vl][msg.std_meta.prio]-= 1
@@ -206,12 +260,13 @@ def simulate(switch: Switch, msg_bursts: 'list[tuple[list[Msg], int]]',
     # any final word?
     #print(switch)
 
-def generate(msg_count: int, b_rnd_range: 'tuple[int, int]', seed=None):
+def generate(msg_count: int, burst_range: 'tuple[int, int]',
+        trsmit_range: 'tuple[int, int]', seed: int=None):
     """
     generates a random amount of messages
     grouped in randomly sized and spaced bursts
 
-    data is number of message, dash, random
+    data is <burst number> "-" <message number> "-" <random>
 
     returns an iterable
     """
@@ -219,21 +274,27 @@ def generate(msg_count: int, b_rnd_range: 'tuple[int, int]', seed=None):
     if seed:
         randseed(seed)
 
+    burst_k = 0
     data = (
-        "%03d-%d" % (k, randrange(10, 100))
+        "%02d-%03d-%d" % (burst_k, k, randrange(10, 100))
         for k in range(msg_count)
     )
     while msg_count:
-        many = min(randrange(*b_rnd_range), msg_count)
-        msg_count-= many
+        # how many in this burst
+        many = min(randrange(*burst_range), msg_count)
+        # how many can be transmited before next burst
+        trsmit = randrange(*trsmit_range)
 
         yield ([
                 Msg(randrange(settings['nb_vl']), next(data))
                 for _ in range(many)
-            ], many) # let time to send all for now
+            ], trsmit)
+
+        msg_count-= many
+        burst_k+= 1
 
 if '__main__' == __name__:
-    from sys import argv, stderr
+    from sys import argv, stdout, stderr
 
     default_settings()
 
@@ -245,11 +306,13 @@ if '__main__' == __name__:
        {" "*len(prog)} [--rnd-range <mi> <ma>]
        {" "*len(prog)} [--seed <s>] [--colors]
 
-  --rr         list VL_N to use eg. `--rr '1,1,1'` (def.)
-  --count      how many messages to generate       (def. 42)
-  --rnd-range  range for the size of the bursts    (def. 3 10)
-  --seed       the seed for the random generation  (def. random)
-  --colors     (tries with) enables colors         (def. disabled)
+  --rr            list VL_N to use eg. `--rr '1,1,1'`     (def.)
+  --count         how many messages to generate           (def. 42)
+  --burst-range   range for the size of the bursts        (def. 3 10)
+  --trsmit-range  range for the transmition after bursts  (def. 10 11)
+  --seed          the seed for the random generation      (def. random)
+  --colors        (tries with) enables colors             (def. disabled)
+  --save-files    saves results to .txt files             (def. disabled)
 
   Compare {len(settings['tested_switches'])} different switch implementations:
    - {(chr(10)+"   - ").join(
@@ -268,13 +331,17 @@ if '__main__' == __name__:
             ]
         elif "--count" == arg:
             settings['count'] = int(argv.pop(0))
-        elif "--rnd-range" == arg:
-            settings['rnd_range'] = (int(argv.pop(0)), int(argv.pop(0)))
+        elif "--burst-range" == arg:
+            settings['burst-range'] = (int(argv.pop(0)), int(argv.pop(0)))
+        elif "--trsmit-range" == arg:
+            settings['trsmit-range'] = (int(argv.pop(0)), int(argv.pop(0)))
         elif "--seed" == arg:
             settings['seed'] = int(argv.pop(0))
         elif "--colors" == arg:
             settings['colors'] = True
             from os import system; system("") # (Windows)
+        elif "--save-files" == arg:
+            settings['save-files'] = True
         else:
             print(f"Unknown argument: '{arg}'", file=stderr)
             exit(1)
@@ -282,7 +349,8 @@ if '__main__' == __name__:
     # same traffic for each simulation
     msgs = list(generate(
         settings['count'],
-        settings['rnd_range'],
+        settings['burst-range'],
+        settings['trsmit-range'],
         settings['seed']
     ))
     for Swit in settings['tested_switches']:
@@ -294,9 +362,11 @@ if '__main__' == __name__:
 
         dropped = settings['count']-len(ordered) # if maybe for some reason..
 
-        with open(Swit.__name__ + ".ignore.txt", 'wt') as file:
-            print("with", Swit.__name__, file=file)
-            print("resulting order:", end=" ", file=file)
-            print("("+str(len(ordered)), "messages", dropped, "dropped)", file=file)
-            print("\t" + "\n\t".join(str(msg) for msg in ordered), file=file)
-            #print()
+        if settings['save-files']:
+            out = open(Swit.__name__ + ".txt", 'wt')
+        else:
+            out = stdout
+        print("with", Swit.__name__, file=out)
+        print("resulting order:", end=" ", file=out)
+        print("("+str(len(ordered)), "messages", dropped, "dropped)", file=out)
+        print("\t" + "\n\t".join(str(msg) for msg in ordered), file=out)
