@@ -1,0 +1,12 @@
+It's possibole to use a Raspberry PI 3 to run P4PI.
+Take into account the following notes:
+	1- Raspberry PI3 onboard ethernet has a different name so it needs to be manually set to eth0 to be compatible 
+	with other scripts
+	
+	2- Raspberry PI3 has 1GB RAM only. This limits the amount of memory that is possible to allocate to T4P4S programs.
+	
+	3- t4p4s.sh script has a weird behaviour on PI3, in that it doesn't read the command line arguments correctly.
+	This needs investigation to be solved correctly.
+	A possible workaround is to put the variable T4P4S_TRACE to 1
+		export T4P4S_TRACE=1
+	This will solve the issue.
