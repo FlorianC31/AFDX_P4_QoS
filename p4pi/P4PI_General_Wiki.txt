@@ -74,5 +74,6 @@ P4RT Shell cmds: link https://github.com/p4lang/p4runtime-shell
 		    (keys) : actionName(params);
 		}
         }
-	
+        
+	/!\ When inputting the keys be careful about endiannes (MSB/LSB position) /!\
 	
