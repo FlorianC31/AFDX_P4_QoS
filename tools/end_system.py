@@ -27,7 +27,7 @@ def get_packet(VL_dst,Src_const,data_int):
 	
 # Get arguments
 name, iface_name, npackets, *_ = sys.argv
-vl_bag_array = sys.argv[2:]
+vl_bag_array = sys.argv[3:]
 npackets = int(npackets)
 
 #bind layers to AFDX
