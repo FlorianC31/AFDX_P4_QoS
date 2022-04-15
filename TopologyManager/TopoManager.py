@@ -439,7 +439,7 @@ class Topology:
         for vl in self.vls:
             with open("check_" + vl + ".sh", 'w') as file:
                 # Call sniffing script with all the host and switch ports crossed by the current VL
-                output_line = ["python3", MININET_SENDER_SCRIPT]
+                output_line = ["python3", MININET_SNIFFER_SCRIPT]
                 for path in self.vls[vl].paths:
                     for entity in path:
                         if entity[0] == 's':  # if the entity is a switch
