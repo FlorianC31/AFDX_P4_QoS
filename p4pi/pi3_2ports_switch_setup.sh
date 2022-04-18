@@ -1,5 +1,5 @@
 #setup onboard ethernet to eth0
-echo"setup onboard ethernet to eth0"
+echo "setup onboard ethernet to eth0"
 ifconfig enxb827eb664f43 down
 ip link set enxb827eb664f43 name eth0
 ifconfig eth0 up
@@ -9,6 +9,9 @@ echo "Renaming usb dongle to eth1"
 ifconfig enxb0a7b92ccbff down
 ip link set enxb0a7b92ccbff name eth1
 ifconfig eth1 up
+
+#need to test if this next line solves a probable issue
+#p4pi-setup
 
 #create bridge br2 and connect eth0 to it
 echo "Creating bridge br2"
