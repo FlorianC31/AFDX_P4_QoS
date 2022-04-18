@@ -17,3 +17,25 @@ Outputs:
 - commands_x.txt : switch table for each switch
 - check VL file : sniffer + packet sender for each VL
 - topo.txt file (only for p4app) : to be added in the p4app package
+
+---
+
+Environement:
+
+> AFDX general parameters:
+- `PACKET_SIZE` AFDX packet size (default `64`)
+- `ACTION_NAME` P4 : Name of the action function (default `"Check_VL"`)
+- `DEFAULT_BAG` AFDX default BAG (default `64`)
+
+> t4p4s (Linux PC) & p4pi (Raspberry) parameters:
+- `AFDX_PREFIX` AFDX prefix (default `"03:00:00:00:00"`)
+- `NB_PACKETS` Default number of packets to be send in test (default `1000`)
+- `SENDER_SCRIPT_NAME` Name of the Python script used to send packer (default `"end_system.py "`)
+
+> p4app (Mininet) parameters:
+- `TABLE_NAME` AFDX table name (default `"afdx_table"`)
+- `DEFAULT_PRIO` Default priority (if not defined in the input topo txt file) (default `1`)
+- `MININET_SENDER_SCRIPT` Name of the Python script used to send packets in Mininet p4app package (default `"send_afdx_packet.py"`)
+- `MININET_SNIFFER_SCRIPT` Name of the Python script used to monitor packets in Mininet (default `"sniffer_mininet.py"`)
+- `MININET_MC_DUMP` Show the tables in mininet (default `True`)
+- `P4APP_PRIORITY` Enable priority management (default `False`)

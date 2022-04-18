@@ -4,47 +4,49 @@
 import os
 import sys
 from shutil import which
+str_getenv = lambda str, default="": os.getenv(str, default)
+int_getenv = lambda str, default=0: int(os.getenv(str) or default)
 
 ###################### AFDX general parameters #######################
 # AFDX packet size
-PACKET_SIZE = 64
+PACKET_SIZE = int_getenv('PACKET_SIZE', 64)
 
 # P4 : Name of the action function
-ACTION_NAME = "Check_VL"
+ACTION_NAME = str_getenv('ACTION_NAME', "Check_VL")
 
 # AFDX default BAG
-DEFAULT_BAG = 64
+DEFAULT_BAG = int_getenv('DEFAULT_BAG', 64)
 
 
 ######### t4p4s (Linux PC) & p4pi (Raspberry) parameters #############
 # AFDX prefix
-AFDX_PREFIX = "03:00:00:00:00"
+AFDX_PREFIX = str_getenv('AFDX_PREFIX', "03:00:00:00:00")
 
 # Default number of packets to be send in test
-NB_PACKETS = 1000
+NB_PACKETS = int_getenv('NB_PACKETS', 1000)
 
 # Name of the Python script used to send packer
-SENDER_SCRIPT_NAME = "end_system.py "
+SENDER_SCRIPT_NAME = str_getenv('SENDER_SCRIPT_NAME', "end_system.py ")
 
 
 #################### p4app (Mininet) parameters ######################
 # AFDX table name
-TABLE_NAME = "afdx_table"
+TABLE_NAME = str_getenv('TABLE_NAME', "afdx_table")
 
 # Default priority (if not defined in the input topo txt file)
-DEFAULT_PRIO = 1
+DEFAULT_PRIO = int_getenv('DEFAULT_PRIO', 1)
 
 # Name of the Python script used to send packets in Mininet p4app package
-MININET_SENDER_SCRIPT = "send_afdx_packet.py"
+MININET_SENDER_SCRIPT = str_getenv('MININET_SENDER_SCRIPT', "send_afdx_packet.py")
 
 # Name of the Python script used to monitor packets in Mininet
-MININET_SNIFFER_SCRIPT = "sniffer_mininet.py"
+MININET_SNIFFER_SCRIPT = str_getenv('MININET_SNIFFER_SCRIPT', "sniffer_mininet.py")
 
 # Show the tables in mininet
-MININET_MC_DUMP = True
+MININET_MC_DUMP = bool(int_getenv('MININET_MC_DUMP', True))
 
 # Enable priority management
-P4APP_PRIORITY = False
+P4APP_PRIORITY = bool(int_getenv('P4APP_PRIORITY', False))
 
 
 _help = """
@@ -338,7 +340,7 @@ class Topology:
         
         switch_list = []
         for switch in self.switches:
-            switch_list.append("'commands_"  + switch[1:] + ".txt'")
+            switch_list.append("commands_"  + switch[1:] + ".txt")
             with open(switch_list[-1], 'w') as file:
                 node_handle = 0
                 group_id = 1
