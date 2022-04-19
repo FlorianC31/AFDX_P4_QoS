@@ -7,6 +7,8 @@ from shutil import which
 str_getenv = lambda str, default="": os.getenv(str, default)
 int_getenv = lambda str, default=0: int(os.getenv(str) or default)
 
+# INFO : Params can be declared in Environmenent, or directly here under (second argument)
+
 ###################### AFDX general parameters #######################
 # AFDX packet size
 PACKET_SIZE = int_getenv('PACKET_SIZE', 64)
@@ -62,7 +64,21 @@ Outputs:
 - commands_x.txt : switch table for each switch
 - check VL file : sniffer + packet sender for each VL
 - topo.txt file (only for p4app) : to be added in the p4app package
+
+Info:
+- The script use several parameters which can be direclty modified in the script or as environment variable.
 """
+
+def get_p4app_command():
+    if which('p4app') is not None:
+        # if the p4app has been added in the /usr/local/bin/ folder
+        p4app_cmd = "p4app"
+    else:
+        # else, p4app has to be in the folder where the check_VLx.sh files are launched
+        p4app_cmd = "./p4app"
+    return p4app_cmd
+
+
 
 class bcolors:
     HEADER = '\033[95m'
@@ -76,6 +92,7 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
+
 class BagError(Exception):
     """Exception raised when the defined BAG is not a power of 2 """
 
@@ -84,11 +101,13 @@ class BagError(Exception):
         super().__init__(self.message)
 
 
+
 class InputError(Exception):
     def __init__(self, msg):
         """Exception raised for input error"""
         self.message = msg
         super().__init__(self.message)
+
 
 
 class VirtualLink:
@@ -100,6 +119,7 @@ class VirtualLink:
         self.priority = DEFAULT_PRIO
         self.add_path(data_line)
         self.check_bag()
+
 
     def add_path(self, data_line):
         """ Add the VL path details from the data line form topo input file.
@@ -123,10 +143,12 @@ class VirtualLink:
             self.bag = DEFAULT_BAG
             self.priority = DEFAULT_PRIO
 
+
     def check_bag(self):
         # check if the BAG is a power of 2
         if int(self.bag) & (int(self.bag) -1) != 0:
             raise BagError(self.id, self.bag)
+
 
     def print_paths(self):
         """ Print the VL details """
@@ -135,6 +157,7 @@ class VirtualLink:
         print(f"{bcolors.HEADER}{bcolors.BOLD}VL_ID:{bcolors.ENDC}", f"{bcolors.OKBLUE}" + self.id + f"{bcolors.ENDC}")
         for path in self.paths:
             print("-", path, "- BAG:", self.bag, "- Priority:", self.priority)
+
 
 
 class Switch:
@@ -150,10 +173,12 @@ class Switch:
         self.ports = [distant_entity]  # Creation of the port list with the first entity
         self.connections = {}  #
 
+
     def add_port(self, distant_entity):
         """ Addition of an entity in the port list """
 
         self.ports.append(distant_entity)
+
 
     def add_connection(self, vl):
         """ For a given VL and the current switch: Addition of connexions between ingress port and outgress ports list
@@ -171,6 +196,7 @@ class Switch:
                     self.connections[vl.id] = {'ingress_port': ingress_port, 'outgress_port': [outgress_port]}
                 else:  # if it already exists (multicast VL), the outgress port is added in the outgress ports list
                     self.connections[vl.id]['outgress_port'].append(outgress_port)
+
 
     def print(self):
         """ Print the switches details:
@@ -191,6 +217,7 @@ class Switch:
             print(connect + ": port" + str(self.connections[connect]['ingress_port']) + "->port" + outgress_list)
 
 
+
 class Topology:
     def __init__(self, topo_filename):
         """ Class containing all the switches, host, VL and physical connections of the input topology """
@@ -203,6 +230,7 @@ class Topology:
 
         self.read_input_file(topo_filename)
         self.create_switch_connections()
+
 
     def read_input_file(self, topo_filename):
         """ Reading and processing input topo file"""
@@ -237,6 +265,7 @@ class Topology:
                 self.read_mapping(line.strip())
                 line = topo_file.readline()
 
+
     def read_link(self, data_line):
         """ Reading links in topo input file
             Only the two first fields are taken into account
@@ -247,6 +276,7 @@ class Topology:
 
         self.read_entity(data, 0)
         self.read_entity(data, 1)
+
 
     def read_entity(self, switch_data, i):
         """ For each entity of the link line, store it in switch dict or host list """
@@ -267,6 +297,7 @@ class Topology:
         else:
             raise NameError("The entity in the links list has to start with 's' for swhitchs or 'h' for hosts")
 
+
     def read_vls(self, data_line):
         """ Read vls line from input topo file and store them in vls dict """
 
@@ -278,6 +309,7 @@ class Topology:
 
         else:  # else, the VL is completed with the new path (in case of multicast VL)
             self.vls[data[0]].add_path(data)
+
 
     def read_mapping(self, data_line):
         """ Read port mapping line from input topo file and store the in mapping dict """
@@ -294,6 +326,7 @@ class Topology:
             for vl in self.vls:
                 self.switches[switch].add_connection(self.vls[vl])
 
+
     def check_mapping(self):
         """ checking if the port maipping has been correclty defined in the topo input file:
         - each host has to be defined
@@ -304,7 +337,6 @@ class Topology:
         for host in self.hosts:
             if host not in self.mapping:
                 raise InputError("The host " + host + " is not defined in the port mapping in input topo file.")
-
 
         # check there is not duplicated tuple (PC_name,eth_interface_name)
         flipped={}
@@ -325,6 +357,7 @@ class Topology:
         print('')
         print(f"{bcolors.HEADER}{bcolors.BOLD}Physical port mapping:{bcolors.ENDC}", self.mapping)
 
+
     def write_topo_file(self, filename):
         """ Creation of the topo file to be given in input in the p4app package """
 
@@ -334,6 +367,7 @@ class Topology:
 
             for connect in self.connections:
                 file.write(str(' '.join(connect)) + '\n')
+
 
     def write_switch_cmd_files_p4app(self):
         """ Creation of the command.txt file for each switch for the p4app input package """
@@ -359,7 +393,7 @@ class Topology:
                                     ingress_port,
                                     vl_id,
                                     "=>",
-                                    str(PACKET_SIZE),
+                                    str(MAX_PACKET_SIZE),
                                     str(group_id),
                                     str(priority),
                                     '\n']
@@ -387,9 +421,10 @@ class Topology:
             print('')
             print(f"{bcolors.HEADER}{bcolors.BOLD}NOTICE (for output files):{bcolors.ENDC}")
             if len(switch_list) == 1:
-                print(" - " + ", ".join(switch_list) + " file has to be included in the p4app package for Mininet.")
+                print(" - '" + "', '".join(switch_list) + "' file has to be included in the p4app package for Mininet.")
             else:
-                print(" - " + ", ".join(switch_list) + " files have to be included in the p4app package for Mininet.")
+                print(" - '" + "', '".join(switch_list) + "' files have to be included in the p4app package for Mininet.")
+
 
     def write_switch_cmd_files_linux(self, platform_type):
         """ Creation of the command.txt file for each switch for the p4app input package
@@ -421,7 +456,7 @@ class Topology:
                     if platform_type == 't4p4s':
                         vl_id = vl_id + "00"
 
-                    line = "(" + ingress_port + ", " + vl_id + ") : " + ACTION_NAME + "(" + str(PACKET_SIZE) + ", " + outgress_port0 + ");"
+                    line = "(" + ingress_port + ", " + vl_id + ") : " + ACTION_NAME + "(" + str(MAX_PACKET_SIZE) + ", " + outgress_port0 + ");"
                     file.write(line)
                     file.write('\n')
 
@@ -432,50 +467,45 @@ class Topology:
                 print(" - " + ", ".join(switch_list) + " file has to be included in the afdx.p4 file for " + platform_type + ".")
             else:
                 print(" - " + ", ".join(switch_list) + " files have to be included in the afdx.p4 files for " + platform_type + ".")
-                        
+
+
     def write_check_files_p4app(self):
         """ Writing of checking script for each VL for p4app platform. These scripts perform 2 actions :
         - Calling sniffing script with all the host and switch ports crossed by the current VL
         - Sending a packet on the source host of the current VL """
 
+        p4app_cmd = get_p4app_command()
+        topo = []
+        # Send a packet on a VL
         for vl in self.vls:
-            with open("check_" + vl + ".sh", 'w') as file:
-                # Call sniffing script with all the host and switch ports crossed by the current VL
-                output_line = ["python3", MININET_SNIFFER_SCRIPT]
-                for path in self.vls[vl].paths:
-                    for entity in path:
-                        if entity[0] == 's':  # if the entity is a switch
-                            # Ingress interface
-                            previous_entity = path[path.index(entity) - 1]
-                            ingress_port = self.switches[entity].ports.index(previous_entity)
-                            ingress = entity + "-eth" + str(ingress_port + 1)  # +1: Ports are numbered from 1 in p4app instead of 0
-                            if ingress not in output_line:
-                                output_line.append(ingress)
-
-                            # Outgress interface
-                            next_entity = path[path.index(entity) + 1]
-                            outgress_port = self.switches[entity].ports.index(next_entity)
-                            outgress = entity + "-eth" + str(outgress_port + 1)  # +1: Ports are numbered from 1 in p4app instead of 0
-                            if outgress not in output_line:
-                                output_line.append(outgress)
-
-                        else:  # if it's a host
-                            if entity not in output_line:
-                                output_line.append(entity)
-                file.write(" ".join(output_line[:10]))
-                file.write(" &\n")
+            with open("send_" + vl + ".sh", 'w') as file:
                 host = self.vls[vl].paths[0][0]
-
-                # Send a packet on the source host of the current VL
-                if which('p4app') is not None:
-                    # if the p4app has been added in the /usr/local/bin/ folder
-                    p4app_cmd = "p4app"
-                else:
-                    # else, p4app has to be in the folder where the check_VLx.sh files are launched
-                    p4app_cmd = "./p4app"
+                dest = self.vls[vl].paths[0][-1]
+                topo.append(vl[2:] + ',' + host + ',' + dest)
                 file.write(p4app_cmd + " exec m " + host + " python ../tmp/" + MININET_SENDER_SCRIPT + " " + vl + ' ' + host + ' ' + self.vls[vl].bag)
-            
-            print(" - 'check_" + vl + ".sh' has to be launched on a terminal (outside Mininet) to check " + vl + " (send and monitor packets).")
+            print(" - 'send_" + vl + ".sh' has to be launched on a terminal (outside Mininet) to send poacket on " + vl + ".")
+
+        # Send a packet on all VL at the same time
+        with open("send_all_packets.sh", 'w') as file:
+            file.write('echo "Sending packets on all VLs"')
+            for vl in self.vls:
+                host = self.vls[vl].paths[0][0]
+                file.write(" & " + p4app_cmd + " exec m " + host + " python ../tmp/" + MININET_SENDER_SCRIPT + " " + vl + ' ' + host + ' ' + self.vls[vl].bag)
+            file.write(' && bg')
+            print(" - 'send_all_packets.sh' has to be launched on a terminal (outside Mininet) to send packets on all vl in the same time.")
+
+        # Monitor VL on each host
+        with open("sniffer.sh", 'w') as file:
+            file.write('echo "Sniffing packets on all hosts"')
+            for host in self.hosts:
+                file.write(" & " +p4app_cmd + " exec m " + host + " tcpdump -w /tmp/p4app_logs/" + host + ".pcap")
+            file.write(' && bg')
+        print(" - 'sniffer.sh' has to be launched on a terminal (outside Mininet) to monitor all packets on all hosts and switch ports.")
+        
+        with open("analysis_topo.txt", 'w') as file:
+            file.write("\n".join(topo))
+        print(" - 'analysis_topo.txt' has to be given into input for 'analyser.py' script.")
+
 
     def write_check_files_linux(self):
         """ Writing of checking script for each VL for linux platforms (t4p4s and p4pi). These scripts perform 2 actions :
@@ -485,6 +515,7 @@ class Topology:
         vl_dict = {}
         end_system_dict = {}
 
+        # Get all the hosts and dest for each VL and generate analysis_topo.txt for analysis.py script
         with open("analysis_topo.txt", 'w') as file:
             for vl in self.vls:
                 for path in self.vls[vl].paths:
@@ -512,23 +543,48 @@ class Topology:
                     else:
                         end_system_dict[end_system_host].append(vl_bag)
                 file.write(vl[2:] + ',' + end_system_host + ',' + end_system_dest + '\n')
-
         print(" - 'analysis_topo.txt' has to be given into input for 'analyser.py' script.")
 
+        # Write the sniffer files
+        pc_sniffer = {}
         for end_system in vl_dict:
             pc, eth = self.mapping[end_system]
 
             with open("sniffer_" + end_system + "_" + pc + "_" + eth + ".sh", 'w') as file:
-                file.write("tcpdump -i " + eth + " or".join(vl_dict[end_system]) + " -A -w " + end_system + ".pcap")
+                line = "tcpdump -i " + eth + " or".join(vl_dict[end_system]) + " -w " + end_system + ".pcap"
+                file.write(line)
+                if pc in pc_sniffer:
+                    pc_sniffer[pc].append(line)
+                else:
+                    pc_sniffer[pc] = [line]
             print(" - 'sniffer_" + end_system + "_" + pc  + "_" + eth + ".sh' has to be launched on " + pc + " to monitor all packets exiting and arriving on " + end_system + ".")
 
+        with open("sniffer_" + pc + "_all_hosts.sh", 'w') as file:
+            file.write("Sniffing all hosts on " + pc + ". & ")
+            file.write(" & ".join(pc_sniffer[pc]))
+            file.write(" && bg")
+        print(" - 'sniffer_" + pc + "_all_hosts.sh' has to be launched on " + pc + " to monitor all packets exiting and arriving on all hosts of the PC.")
+
+        # Write the sender files
+        pc_sender = {}
         for end_system in end_system_dict:
             es_pc, es_eth = self.mapping[end_system]
             with open("end_system_" + end_system + "_" + es_pc + "_" + es_eth + ".sh", 'w') as file:
-                file.write("python3 " + SENDER_SCRIPT_NAME + " " + es_eth + " " + str(NB_PACKETS) + " " + " ".join(end_system_dict[end_system]))
-
+                line = "python3 " + SENDER_SCRIPT_NAME + " " + es_eth + " " + str(NB_PACKETS) + " " + " ".join(end_system_dict[end_system])
+                file.write(line)
+                if pc in pc_sender:
+                    pc_sender[pc].append(line)
+                else:
+                    pc_sender[pc] = [line]
             print(" - 'end_system_" + end_system + "_" + es_pc + "_" + es_eth + ".sh' has to be launched on " + es_pc + " to send packets on all VL from " + end_system + " on interface " + es_eth + ".")
-            
+        
+        with open("sender_" + pc + "_all_VL.sh", 'w') as file:
+            file.write("Sending all VL from " + pc + ". & ")
+            file.write(" & ".join(pc_sender[pc]))
+            file.write(" && bg")
+        print(" - 'sender_" + pc + "_all_VL.sh' has to be launched on " + es_pc + " to send packets on all VL from this PC.")
+
+
     def print(self):
         """ Print the topology details:
         - Physical connections
@@ -545,10 +601,12 @@ class Topology:
             self.switches[switch].print()
 
 
+
 def check_platform_type(platform_type):
     """ check if the output type is well defined (1, 2 or 3) only"""
     if platform_type not in ('p4app', 'p4pi', 't4p4s'):
         raise InputError("platform_type=" + platform_type + " - The output type of the write_switch_cmd_files has to be 'p4app', 'p4pi' or 't4p4s'")
+
 
 
 if __name__ == "__main__":
