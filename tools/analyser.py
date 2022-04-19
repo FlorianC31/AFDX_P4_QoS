@@ -6,17 +6,20 @@ from datetime import datetime
 import numpy
 import matplotlib.pyplot as plt
 import scipy.stats
+from scipy.interpolate import interp1d
 from scapy.all import *
 
 def read_pcap(file_name):
 	parser = PcapReader(file_name)
-	lines = []
+	lines = {}
 	for p in parser:
-	    payload = p.load[0:14].decode()
-	    dst = p.dst
-	    time = str(p.time)
-	    line_to_add = time+","+dst+","+payload
-	    lines.append(line_to_add)
+	    try:
+		    data = p.load[0:14].decode()
+		    dst = p.dst
+		    time = str(p.time)
+		    lines[(data,dst)] = float(time)
+	    except:
+		    pass
 	return lines
 
 departure_logs = []
@@ -47,27 +50,28 @@ for line in analysis_topo_handler.readlines():
     arrival = split_line[2]+".pcap"
     arrival_logs.append(arrival)
 
-n_bins = 100 # number of histrogram bins
+n_bins = 20 # number of histrogram bins
 histrogram_data = [[] for vl in vls_to_analyse]
 for i in range(len(vls_to_analyse)): # loop through all vls
+    print("Analyzing "+vls_to_plot[i])
     total_end_to_end_delay = 0
     number_of_packets = 0
     departure_log = read_pcap(departure_logs[i])
     arrival_log = read_pcap(arrival_logs[i])
     # print to console : 
-    for departure_packet in departure_log: # loop through departure packets for the VL[i]
-        if departure_packet.strip().split(",")[1] == vls_to_analyse[i]:
-            for arrival_packet in arrival_log:  # loop through lines of arrival packets for the VL[i]
-                if arrival_packet.strip().split(",")[1] == vls_to_analyse[i] and departure_packet.strip().split(",")[2]==arrival_packet.strip().split(",")[2]: # check matching vls & matching packet departure vs arrival
-                    departure_time = float(departure_packet.strip().split(",")[0]) # extract departure time
-                    arrival_time = float(arrival_packet.strip().split(",")[0]) # extract arrival time
-                    # Get the interval in microseconds
-                    end_to_end_delay_in_micro_secs = (arrival_time - departure_time) * 1000
-                    # Calculations needed for average
-                    total_end_to_end_delay = total_end_to_end_delay + end_to_end_delay_in_micro_secs
-                    number_of_packets = number_of_packets + 1
-                    # Calculations needed for histrogram plotting
-                    histrogram_data[i].append(end_to_end_delay_in_micro_secs)
+    for key_departure_packet in departure_log: # loop through departure packets for the VL[i]
+    	try:
+    	    departure_time = departure_log[key_departure_packet]
+    	    arrival_time = arrival_log[key_departure_packet]
+   	    # Get the interval in microseconds
+    	    end_to_end_delay_in_micro_secs = (arrival_time - departure_time) * 1000
+    	    # Calculations needed for average
+    	    total_end_to_end_delay = total_end_to_end_delay + end_to_end_delay_in_micro_secs
+    	    number_of_packets = number_of_packets + 1
+    	    # Calculations needed for histrogram plotting
+    	    histrogram_data[i].append(end_to_end_delay_in_micro_secs)
+    	except:
+    	    pass
     if number_of_packets > 0:
     	average_time = end_to_end_delay_in_micro_secs / number_of_packets
     	print("Vl : "+ vls_to_plot[i] + " || average end-end delay : "+str(average_time)+" ms")
@@ -79,11 +83,17 @@ for i in range(len(vls_to_analyse)): # loop through all vls
 for i in range(len(vls_to_analyse)):
     n, bins = numpy.histogram(numpy.array(histrogram_data[i]), n_bins)
     vals = n/sum(n)*100
-    plt.plot(bins[:-1], vals)
+    X = bins[:-1]
+    Y = vals
+    # curve smoothing
+    cubic_model = interp1d(X,Y, kind = "cubic")
+    X_smooth = numpy.linspace(X.min() , X.max() , 500)
+    Y_smooth = cubic_model(X)
+    plt.plot(X,Y)
 
 # show plots
 plt.legend(vls_to_plot)
-plt.xlabel("end to end delay")
-plt.ylabel("% of VL packets")
+plt.xlabel("end to end delay (ms)")
+plt.ylabel("Pourcentage of VL packets (%)")
 plt.title("end-to-end delays comparison (ms)")
 plt.show()
