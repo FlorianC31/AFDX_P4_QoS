@@ -58,7 +58,7 @@ control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadat
 
     /// @note: `VLWeight`; not sure should be there, maybe in some other
     /// table's action for consistency (with `key = { dstVL : exact; }`)
-    action Check_VL(bit<32> MaxLength, bit<16> MCastGrp, bit<0> VLWeight) {
+    action Check_VL(bit<32> MaxLength, bit<16> MCastGrp, bit<8> VLWeight) {
         meta.maxi_length = MaxLength;
         standard_metadata.mcast_grp = MCastGrp;
 
