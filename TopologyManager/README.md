@@ -23,7 +23,7 @@ Outputs:
 Environement:
 
 > AFDX general parameters:
-- `PACKET_SIZE` AFDX packet size (default `64`)
+- `MAX_PACKET_SIZE` AFDX max packet size (default `64`)
 - `ACTION_NAME` P4 : Name of the action function (default `"Check_VL"`)
 - `DEFAULT_BAG` AFDX default BAG (default `64`)
 
