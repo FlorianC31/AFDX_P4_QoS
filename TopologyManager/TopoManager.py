@@ -11,7 +11,7 @@ int_getenv = lambda str, default=0: int(os.getenv(str) or default)
 
 ###################### AFDX general parameters #######################
 # AFDX packet size
-PACKET_SIZE = int_getenv('PACKET_SIZE', 64)
+MAX_PACKET_SIZE = int_getenv('MAX_PACKET_SIZE', 64)
 
 # P4 : Name of the action function
 ACTION_NAME = str_getenv('ACTION_NAME', "Check_VL")
