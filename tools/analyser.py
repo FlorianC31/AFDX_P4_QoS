@@ -9,6 +9,8 @@ import scipy.stats
 from scipy.interpolate import interp1d
 from scapy.all import *
 
+SMOOTH_CURVES = True
+
 def read_pcap(file_name):
 	parser = PcapReader(file_name)
 	lines = {}
@@ -88,8 +90,11 @@ for i in range(len(vls_to_analyse)):
     # curve smoothing
     cubic_model = interp1d(X,Y, kind = "cubic")
     X_smooth = numpy.linspace(X.min() , X.max() , 500)
-    Y_smooth = cubic_model(X)
-    plt.plot(X,Y)
+    Y_smooth = cubic_model(X_smooth)
+    if SMOOTH_CURVES:
+    	plt.plot(X_smooth,Y_smooth)
+    else:
+    	plt.plot(X,Y)
 
 # show plots
 plt.legend(vls_to_plot)
