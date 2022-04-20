@@ -21,7 +21,36 @@ def next(*a, **k):
         return None
 
 def with_sliding_win(filename):
-    " TODO mdr "
+    """
+    count occurences (not only consecutives) of messages from each
+    vls inside a sliding window which size is the sum of weights
+    """
+    # repartition[vl]: list of "run lengths" for vl
+    repartition: 'dict[int, list[int]]' = {}
+    WIN_SIZE, WIN_STEP = 3+5+7, 1
+    wins = slice(WIN_SIZE)
+
+    every = list(messages(filename))
+
+    # until no message left
+    for k in range(len(every)-WIN_SIZE):
+        # window's content
+        content = (vl for (vl, burst_nb, msg_nb) in every[wins])
+
+        # count occurences of vl in content (of the window)
+        for vl in content:
+            lst = repartition.get(vl, [])
+            if k < len(lst):
+                lst[k]+= 1
+            else:
+                lst.append(1)
+                assert k == len(lst)-1
+            repartition[vl] = lst
+
+        # slide window forward
+        wins = slice(wins.start + WIN_STEP, wins.stop + WIN_STEP)
+
+    show_repartition(repartition)
 
 def with_run_length(filename):
     """
@@ -62,6 +91,9 @@ def with_run_length(filename):
 
         if not anymore: break
 
+    show_repartition(repartition)
+
+def show_repartition(repartition: 'dict[int, list[int]]'):
     import numpy as np
     import matplotlib.pyplot as plt
 
