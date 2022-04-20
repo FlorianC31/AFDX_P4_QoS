@@ -1,0 +1,666 @@
+{
+  "header_types" : [
+    {
+      "name" : "scalars_0",
+      "id" : 0,
+      "fields" : [
+        ["userMetadata.maxi_length", 32, false],
+        ["userMetadata.priority", 3, false],
+        ["_padding_0", 5, false]
+      ]
+    },
+    {
+      "name" : "standard_metadata",
+      "id" : 1,
+      "fields" : [
+        ["ingress_port", 9, false],
+        ["egress_spec", 9, false],
+        ["egress_port", 9, false],
+        ["instance_type", 32, false],
+        ["packet_length", 32, false],
+        ["enq_timestamp", 32, false],
+        ["enq_qdepth", 19, false],
+        ["deq_timedelta", 32, false],
+        ["deq_qdepth", 19, false],
+        ["qid", 5, false],
+        ["ingress_global_timestamp", 48, false],
+        ["egress_global_timestamp", 48, false],
+        ["mcast_grp", 16, false],
+        ["egress_rid", 16, false],
+        ["checksum_error", 1, false],
+        ["parser_error", 32, false],
+        ["priority", 3, false],
+        ["_padding", 6, false]
+      ]
+    },
+    {
+      "name" : "afdx_t",
+      "id" : 2,
+      "fields" : [
+        ["dstConst", 32, false],
+        ["dstVL", 16, false],
+        ["srcMac_cst", 24, false],
+        ["srcMac_addr", 24, false],
+        ["etherType", 16, false]
+      ]
+    }
+  ],
+  "headers" : [
+    {
+      "name" : "scalars",
+      "id" : 0,
+      "header_type" : "scalars_0",
+      "metadata" : true,
+      "pi_omit" : true
+    },
+    {
+      "name" : "standard_metadata",
+      "id" : 1,
+      "header_type" : "standard_metadata",
+      "metadata" : true,
+      "pi_omit" : true
+    },
+    {
+      "name" : "afdx",
+      "id" : 2,
+      "header_type" : "afdx_t",
+      "metadata" : false,
+      "pi_omit" : true
+    }
+  ],
+  "header_stacks" : [],
+  "header_union_types" : [],
+  "header_unions" : [],
+  "header_union_stacks" : [],
+  "field_lists" : [],
+  "errors" : [
+    ["NoError", 0],
+    ["PacketTooShort", 1],
+    ["NoMatch", 2],
+    ["StackOutOfBounds", 3],
+    ["HeaderTooShort", 4],
+    ["ParserTimeout", 5],
+    ["ParserInvalidArgument", 6]
+  ],
+  "enums" : [],
+  "parsers" : [
+    {
+      "name" : "parser",
+      "id" : 0,
+      "init_state" : "start",
+      "parse_states" : [
+        {
+          "name" : "start",
+          "id" : 0,
+          "parser_ops" : [
+            {
+              "parameters" : [
+                {
+                  "type" : "regular",
+                  "value" : "afdx"
+                }
+              ],
+              "op" : "extract"
+            }
+          ],
+          "transitions" : [
+            {
+              "type" : "default",
+              "value" : null,
+              "mask" : null,
+              "next_state" : null
+            }
+          ],
+          "transition_key" : []
+        }
+      ]
+    }
+  ],
+  "parse_vsets" : [],
+  "deparsers" : [
+    {
+      "name" : "deparser",
+      "id" : 0,
+      "source_info" : {
+        "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+        "line" : 111,
+        "column" : 8,
+        "source_fragment" : "MyDeparser"
+      },
+      "order" : ["afdx"],
+      "primitives" : []
+    }
+  ],
+  "meter_arrays" : [],
+  "counter_arrays" : [],
+  "register_arrays" : [],
+  "calculations" : [],
+  "learn_lists" : [],
+  "actions" : [
+    {
+      "name" : "NoAction",
+      "id" : 0,
+      "runtime_data" : [],
+      "primitives" : []
+    },
+    {
+      "name" : "MyIngress.Drop",
+      "id" : 1,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 47,
+            "column" : 8,
+            "source_fragment" : "mark_to_drop(standard_metadata)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "MyIngress.Check_VL",
+      "id" : 2,
+      "runtime_data" : [
+        {
+          "name" : "MaxLength",
+          "bitwidth" : 32
+        },
+        {
+          "name" : "MCastGrp",
+          "bitwidth" : 16
+        },
+        {
+          "name" : "p",
+          "bitwidth" : 3
+        }
+      ],
+      "primitives" : [
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["scalars", "userMetadata.maxi_length"]
+            },
+            {
+              "type" : "runtime_data",
+              "value" : 0
+            }
+          ],
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 51,
+            "column" : 12,
+            "source_fragment" : "meta.maxi_length = MaxLength"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["standard_metadata", "mcast_grp"]
+            },
+            {
+              "type" : "runtime_data",
+              "value" : 1
+            }
+          ],
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 52,
+            "column" : 12,
+            "source_fragment" : "standard_metadata.mcast_grp = MCastGrp"
+          }
+        },
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["standard_metadata", "priority"]
+            },
+            {
+              "type" : "runtime_data",
+              "value" : 2
+            }
+          ],
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 53,
+            "column" : 12,
+            "source_fragment" : "standard_metadata.priority = p"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "afdx_spq87",
+      "id" : 3,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 87,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(standard_metadata)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "afdx_spq104",
+      "id" : 4,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "mark_to_drop",
+          "parameters" : [
+            {
+              "type" : "header",
+              "value" : "standard_metadata"
+            }
+          ],
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 104,
+            "column" : 18,
+            "source_fragment" : "mark_to_drop(standard_metadata)"
+          }
+        }
+      ]
+    },
+    {
+      "name" : "afdx_spq100",
+      "id" : 5,
+      "runtime_data" : [],
+      "primitives" : [
+        {
+          "op" : "assign",
+          "parameters" : [
+            {
+              "type" : "field",
+              "value" : ["afdx", "etherType"]
+            },
+            {
+              "type" : "expression",
+              "value" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "|",
+                  "left" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "|",
+                      "left" : {
+                        "type" : "hexstr",
+                        "value" : "0x0800"
+                      },
+                      "right" : {
+                        "type" : "expression",
+                        "value" : {
+                          "op" : "&",
+                          "left" : {
+                            "type" : "expression",
+                            "value" : {
+                              "op" : "&",
+                              "left" : {
+                                "type" : "expression",
+                                "value" : {
+                                  "op" : "<<",
+                                  "left" : {
+                                    "type" : "field",
+                                    "value" : ["standard_metadata", "qid"]
+                                  },
+                                  "right" : {
+                                    "type" : "hexstr",
+                                    "value" : "0x3"
+                                  }
+                                }
+                              },
+                              "right" : {
+                                "type" : "hexstr",
+                                "value" : "0x1f"
+                              }
+                            }
+                          },
+                          "right" : {
+                            "type" : "hexstr",
+                            "value" : "0xffff"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "right" : {
+                    "type" : "expression",
+                    "value" : {
+                      "op" : "&",
+                      "left" : {
+                        "type" : "field",
+                        "value" : ["standard_metadata", "priority"]
+                      },
+                      "right" : {
+                        "type" : "hexstr",
+                        "value" : "0xffff"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 100,
+            "column" : 12,
+            "source_fragment" : "hdr.afdx.etherType = TYPE_IPV4 | (bit<16>) (standard_metadata.qid << 3 ) ..."
+          }
+        }
+      ]
+    }
+  ],
+  "pipelines" : [
+    {
+      "name" : "ingress",
+      "id" : 0,
+      "source_info" : {
+        "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+        "line" : 45,
+        "column" : 8,
+        "source_fragment" : "MyIngress"
+      },
+      "init_table" : "node_2",
+      "tables" : [
+        {
+          "name" : "MyIngress.afdx_table",
+          "id" : 0,
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 56,
+            "column" : 10,
+            "source_fragment" : "afdx_table"
+          },
+          "key" : [
+            {
+              "match_type" : "exact",
+              "name" : "standard_metadata.ingress_port",
+              "target" : ["standard_metadata", "ingress_port"],
+              "mask" : null
+            },
+            {
+              "match_type" : "exact",
+              "name" : "hdr.afdx.dstVL",
+              "target" : ["afdx", "dstVL"],
+              "mask" : null
+            }
+          ],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [2, 1, 0],
+          "actions" : ["MyIngress.Check_VL", "MyIngress.Drop", "NoAction"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "MyIngress.Check_VL" : null,
+            "MyIngress.Drop" : null,
+            "NoAction" : null
+          },
+          "default_entry" : {
+            "action_id" : 1,
+            "action_const" : false,
+            "action_data" : [],
+            "action_entry_const" : false
+          }
+        },
+        {
+          "name" : "tbl_afdx_spq87",
+          "id" : 1,
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 87,
+            "column" : 12,
+            "source_fragment" : "mark_to_drop(standard_metadata)"
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [3],
+          "actions" : ["afdx_spq87"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "afdx_spq87" : null
+          },
+          "default_entry" : {
+            "action_id" : 3,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        }
+      ],
+      "action_profiles" : [],
+      "conditionals" : [
+        {
+          "name" : "node_2",
+          "id" : 0,
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 72,
+            "column" : 13,
+            "source_fragment" : "(hdr.afdx.dstConst == DST_CONST) && (hdr.afdx.srcMac_cst == SRC_CONST)"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "and",
+              "left" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "==",
+                  "left" : {
+                    "type" : "field",
+                    "value" : ["afdx", "dstConst"]
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0x03000000"
+                  }
+                }
+              },
+              "right" : {
+                "type" : "expression",
+                "value" : {
+                  "op" : "==",
+                  "left" : {
+                    "type" : "field",
+                    "value" : ["afdx", "srcMac_cst"]
+                  },
+                  "right" : {
+                    "type" : "hexstr",
+                    "value" : "0x020000"
+                  }
+                }
+              }
+            }
+          },
+          "true_next" : "MyIngress.afdx_table",
+          "false_next" : "tbl_afdx_spq87"
+        }
+      ]
+    },
+    {
+      "name" : "egress",
+      "id" : 1,
+      "source_info" : {
+        "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+        "line" : 97,
+        "column" : 8,
+        "source_fragment" : "MyEgress"
+      },
+      "init_table" : "tbl_afdx_spq100",
+      "tables" : [
+        {
+          "name" : "tbl_afdx_spq100",
+          "id" : 2,
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 100,
+            "column" : 31,
+            "source_fragment" : "="
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [5],
+          "actions" : ["afdx_spq100"],
+          "base_default_next" : "node_8",
+          "next_tables" : {
+            "afdx_spq100" : "node_8"
+          },
+          "default_entry" : {
+            "action_id" : 5,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        },
+        {
+          "name" : "tbl_afdx_spq104",
+          "id" : 3,
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 104,
+            "column" : 18,
+            "source_fragment" : "mark_to_drop(standard_metadata)"
+          },
+          "key" : [],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [4],
+          "actions" : ["afdx_spq104"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "afdx_spq104" : null
+          },
+          "default_entry" : {
+            "action_id" : 4,
+            "action_const" : true,
+            "action_data" : [],
+            "action_entry_const" : true
+          }
+        }
+      ],
+      "action_profiles" : [],
+      "conditionals" : [
+        {
+          "name" : "node_8",
+          "id" : 1,
+          "source_info" : {
+            "filename" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4",
+            "line" : 102,
+            "column" : 18,
+            "source_fragment" : "standard_metadata.packet_length > meta.maxi_length"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : ">",
+              "left" : {
+                "type" : "field",
+                "value" : ["standard_metadata", "packet_length"]
+              },
+              "right" : {
+                "type" : "field",
+                "value" : ["scalars", "userMetadata.maxi_length"]
+              }
+            }
+          },
+          "false_next" : null,
+          "true_next" : "tbl_afdx_spq104"
+        }
+      ]
+    }
+  ],
+  "checksums" : [],
+  "force_arith" : [],
+  "extern_instances" : [],
+  "field_aliases" : [
+    [
+      "queueing_metadata.enq_timestamp",
+      ["standard_metadata", "enq_timestamp"]
+    ],
+    [
+      "queueing_metadata.enq_qdepth",
+      ["standard_metadata", "enq_qdepth"]
+    ],
+    [
+      "queueing_metadata.deq_timedelta",
+      ["standard_metadata", "deq_timedelta"]
+    ],
+    [
+      "queueing_metadata.deq_qdepth",
+      ["standard_metadata", "deq_qdepth"]
+    ],
+    [
+      "queueing_metadata.qid",
+      ["standard_metadata", "qid"]
+    ],
+    [
+      "intrinsic_metadata.ingress_global_timestamp",
+      ["standard_metadata", "ingress_global_timestamp"]
+    ],
+    [
+      "intrinsic_metadata.egress_global_timestamp",
+      ["standard_metadata", "egress_global_timestamp"]
+    ],
+    [
+      "intrinsic_metadata.mcast_grp",
+      ["standard_metadata", "mcast_grp"]
+    ],
+    [
+      "intrinsic_metadata.egress_rid",
+      ["standard_metadata", "egress_rid"]
+    ],
+    [
+      "intrinsic_metadata.priority",
+      ["standard_metadata", "priority"]
+    ]
+  ],
+  "program" : "/home/p4/p4-learning-master/examples/multiqueueing_afdx/afdx_spq.p4i",
+  "__meta__" : {
+    "version" : [2, 23],
+    "compiler" : "https://github.com/p4lang/p4c"
+  }
+}
