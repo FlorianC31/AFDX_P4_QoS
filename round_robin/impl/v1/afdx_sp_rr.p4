@@ -34,7 +34,7 @@ struct headers {
     afdx_t     afdx;
 }
 
-register<bit<32>>(NB_Q * NB_VL) usage;
+register<bit<16>>(NB_Q * NB_VL) usage;
 
 // Parser
 parser MyParser(packet_in packet, out headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
@@ -58,21 +58,21 @@ control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadat
 
     /// @note: `VLWeight`; not sure should be there, maybe in some other
     /// table's action for consistency (with `key = { dstVL : exact; }`)
-    action Check_VL(bit<32> MaxLength, bit<16> MCastGrp, bit<8> VLWeight) {
+    action Check_VL(bit<32> MaxLength, bit<16> MCastGrp, bit<16> VLWeight) {
         meta.maxi_length = MaxLength;
         standard_metadata.mcast_grp = MCastGrp;
 
         // test each queue for its `usage`, use the first one with free space
         #define CASCADE_IF_DO                                             \
-            usage.read(meta.curr_usage, q + NB_Q*hdr.afdx.dstVL);         \
+            usage.read(meta.curr_usage, (bit<32>)(q + NB_Q*hdr.afdx.dstVL));         \
             if (meta.curr_usage < VLWeight) {                             \
-                usage.write(q + NB_Q*hdr.afdx.dstVL, meta.curr_usage+1);  \
+                usage.write((bit<32>)(q + NB_Q*hdr.afdx.dstVL), meta.curr_usage+1);  \
                 standard_metadata.priority = q;                           \
             } else /* next iteration */
 
         // if none found, default to the last one (preserves message order)
         #define CASCADE_ELSE_DO                                       \
-            usage.write(q + NB_Q*hdr.afdx.dstVL, meta.curr_usage+1);  \
+            usage.write((bit<32>)(q + NB_Q*hdr.afdx.dstVL), meta.curr_usage+1);  \
             standard_metadata.priority = q;
 
         // (insert the cascading 'if-else's)
@@ -118,7 +118,7 @@ control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata
             // standard_metadata.priority: queue it is enqueued in
 
             // update curr_usage
-            usage.read(meta.curr_usage, standard_metadata.priority + NB_Q*hdr.afdx.dstVL);
+            usage.read(meta.curr_usage, (bit<32>)(standard_metadata.priority) + (bit<32>)(NB_Q*hdr.afdx.dstVL));
 
             // if this is already the least prio queue (nothing "below")
             if (8 == standard_metadata.priority+1)
@@ -129,7 +129,7 @@ control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata
             else
             {
                 // if this is any other queue but the last one, it has one "below"
-                usage.read(meta.below_usage, standard_metadata.priority+1 + NB_Q*hdr.afdx.dstVL);
+                usage.read(meta.below_usage, (bit<32>)(standard_metadata.priority)+1 + (bit<32>)(NB_Q*hdr.afdx.dstVL));
             }
 
             // if is tail, free 1 on this queue
@@ -139,18 +139,18 @@ control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata
                 if (0 == meta.curr_usage-1)
                 {
                     // foreach q up to standard_metadata.priority do usage[vl][q] = 0 end
-                    usage.write(0 + NB_Q*hdr.afdx.dstVL, 0);
-                    usage.write(1 + NB_Q*hdr.afdx.dstVL, 0);
-                    usage.write(2 + NB_Q*hdr.afdx.dstVL, 0);
-                    usage.write(3 + NB_Q*hdr.afdx.dstVL, 0);
-                    usage.write(4 + NB_Q*hdr.afdx.dstVL, 0);
-                    usage.write(5 + NB_Q*hdr.afdx.dstVL, 0);
-                    usage.write(6 + NB_Q*hdr.afdx.dstVL, 0);
-                    usage.write(7 + NB_Q*hdr.afdx.dstVL, 0);
+                    usage.write((bit<32>)(0 + NB_Q*hdr.afdx.dstVL), 0);
+                    usage.write((bit<32>)(1 + NB_Q*hdr.afdx.dstVL), 0);
+                    usage.write((bit<32>)(2 + NB_Q*hdr.afdx.dstVL), 0);
+                    usage.write((bit<32>)(3 + NB_Q*hdr.afdx.dstVL), 0);
+                    usage.write((bit<32>)(4 + NB_Q*hdr.afdx.dstVL), 0);
+                    usage.write((bit<32>)(5 + NB_Q*hdr.afdx.dstVL), 0);
+                    usage.write((bit<32>)(6 + NB_Q*hdr.afdx.dstVL), 0);
+                    usage.write((bit<32>)(7 + NB_Q*hdr.afdx.dstVL), 0);
                 }
                 else
                 {
-                    usage.write(standard_metadata.priority + NB_Q*hdr.afdx.dstVL, meta.curr_usage-1);
+                    usage.write((bit<32>)standard_metadata.priority + (bit<32>)(NB_Q*hdr.afdx.dstVL), meta.curr_usage-1);
                 }
             } // (endif 0 below)
         }

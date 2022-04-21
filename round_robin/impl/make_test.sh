@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # please don't `sudo` this script, that would be dangerous
 
-if test 0 -eq $#
+if test 0 -eq $# || test '-h' = "$1"
 	then
 		echo "Usage: $0 <program.p4> [<dest.p4app/>]"
 		exit 1
