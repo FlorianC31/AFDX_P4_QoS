@@ -26,6 +26,7 @@ header afdx_t {
 
 struct metadata {
     bit<32> maxi_length;
+    bit<16> vl_weight;
     bit<16> curr_usage;
     bit<16> below_usage;
 }
@@ -61,22 +62,7 @@ control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadat
     action Check_VL(bit<32> MaxLength, bit<16> MCastGrp, bit<16> VLWeight) {
         meta.maxi_length = MaxLength;
         standard_metadata.mcast_grp = MCastGrp;
-
-        // test each queue for its `usage`, use the first one with free space
-        #define CASCADE_IF_DO                                             \
-            usage.read(meta.curr_usage, (bit<32>)(q + NB_Q*hdr.afdx.dstVL));         \
-            if (meta.curr_usage < VLWeight) {                             \
-                usage.write((bit<32>)(q + NB_Q*hdr.afdx.dstVL), meta.curr_usage+1);  \
-                standard_metadata.priority = q;                           \
-            } else /* next iteration */
-
-        // if none found, default to the last one (preserves message order)
-        #define CASCADE_ELSE_DO                                       \
-            usage.write((bit<32>)(q + NB_Q*hdr.afdx.dstVL), meta.curr_usage+1);  \
-            standard_metadata.priority = q;
-
-        // (insert the cascading 'if-else's)
-        #include "CASCADE_IF_ELSE.p4"
+        meta.vl_weight = VLWeight;
     }
 
     table afdx_table {
@@ -98,6 +84,22 @@ control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadat
         if ( (hdr.afdx.dstConst == DST_CONST) && (hdr.afdx.srcMac_cst == SRC_CONST) )//&& (hdr.afdx.etherType == TYPE_IPV4))
         {
             afdx_table.apply();
+
+            // test each queue for its `usage`, use the first one with free space
+            #define CASCADE_IF_DO                                                        \
+                usage.read(meta.curr_usage, (bit<32>)(q + NB_Q*hdr.afdx.dstVL));         \
+                if (meta.curr_usage < meta.vl_weight) {                                        \
+                    usage.write((bit<32>)(q + NB_Q*hdr.afdx.dstVL), meta.curr_usage+1);  \
+                    standard_metadata.priority = q;                                      \
+                } else /* next iteration */
+
+            // if none found, default to the last one (preserves message order)
+            #define CASCADE_ELSE_DO                                                  \
+                usage.write((bit<32>)(q + NB_Q*hdr.afdx.dstVL), meta.curr_usage+1);  \
+                standard_metadata.priority = q;
+
+            // (insert the cascading 'if-else's)
+            #include "CASCADE_IF_ELSE.p4"
         }
         else mark_to_drop(standard_metadata);
     }
@@ -121,7 +123,7 @@ control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata
             usage.read(meta.curr_usage, (bit<32>)(standard_metadata.priority) + (bit<32>)(NB_Q*hdr.afdx.dstVL));
 
             // if this is already the least prio queue (nothing "below")
-            if (8 == standard_metadata.priority+1)
+            if (7 == standard_metadata.priority)
             {
                 // make it 0 so it is considered as "tail" in the next `if`
                 meta.below_usage = 0;
