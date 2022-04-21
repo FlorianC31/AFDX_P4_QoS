@@ -93,13 +93,13 @@ control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadat
                 usage.read(meta.curr_usage, (bit<32>)(q + NB_Q*hdr.afdx.dstVL));         \
                 if (meta.curr_usage < meta.vl_weight) {                                  \
                     usage.write((bit<32>)(q + NB_Q*hdr.afdx.dstVL), meta.curr_usage+1);  \
-                    standard_metadata.priority = 7-q;                                    \
+                    standard_metadata.priority = q;                                      \
                 } else /* next iteration */
 
             // if none found, default to the last one (preserves message order)
             #define CASCADE_ELSE_DO                                                  \
                 usage.write((bit<32>)(q + NB_Q*hdr.afdx.dstVL), meta.curr_usage+1);  \
-                standard_metadata.priority = 7-q;
+                standard_metadata.priority = q;
 
             // (insert the cascading 'if-else's)
             #include "CASCADE_IF_ELSE.p4"
@@ -159,7 +159,7 @@ control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata
                 }
                 else
                 {
-                    usage.write((bit<32>)standard_metadata.priority + (bit<32>)(NB_Q*hdr.afdx.dstVL), meta.curr_usage-1);
+                    usage.write((bit<32>)(standard_metadata.priority) + (bit<32>)(NB_Q*hdr.afdx.dstVL), meta.curr_usage-1);
                 }
             } // (endif 0 below)
         }

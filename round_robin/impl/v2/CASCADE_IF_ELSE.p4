@@ -7,28 +7,28 @@
 #undef q
 #endif
 
-#define q 0
+#define q 7
 CASCADE_IF_DO {
     #undef q
-    #define q 1
+    #define q 6
     CASCADE_IF_DO {
         #undef q
-        #define q 2
+        #define q 5
         CASCADE_IF_DO {
             #undef q
-            #define q 3
+            #define q 4
             CASCADE_IF_DO {
                 #undef q
-                #define q 4
+                #define q 3
                 CASCADE_IF_DO {
                     #undef q
-                    #define q 5
+                    #define q 2
                     CASCADE_IF_DO {
                         #undef q
-                        #define q 6
+                        #define q 1
                         CASCADE_IF_DO {
                             #undef q
-                            #define q 7
+                            #define q 0
                             CASCADE_IF_DO {
                                 CASCADE_ELSE_DO
                             }
