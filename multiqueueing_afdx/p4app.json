@@ -1,5 +1,5 @@
 {
-  "p4_src": "afdx_qos.p4",
+  "p4_src": "afdx_spq.p4",
   "cli": true,
   "pcap_dump": true,
   "enable_log": true,
