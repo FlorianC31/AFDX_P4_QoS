@@ -1,7 +1,7 @@
 /!\ The following has been tested with a Raspberry PI 4 4Gb RAM model /!\
 /!\ The following has been tested on P4PI version p4pi-image-2021-08-23-00b0e048-lite /!\
 
-The goal is to be able to send an AFDX frame from a End System to another ES through P4PI AFDX Switch.
+The goal is to be able to send an AFDX frame from an End System to another ES through P4PI AFDX Switch.
 
 I/ AFDX ES : able to send and receive AFDX frames through Wifi or Ethernet with python script
 	receive_afdx_ES.py

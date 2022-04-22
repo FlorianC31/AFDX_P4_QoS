@@ -26,7 +26,7 @@ General Info:
 		a) ip link add dev "devName" type veth peer name "peerName"
 		b) ip link set dev "devName" address "mac_address"
 		c) ip link set dev "peerName" address "mac_address"
-		d) ip link st dev veth2 up
+		d) ip link set dev "devName" up
 		e) ethtool -K "devName" tx off
 		f) ethtool -K "peerName" tx off
 	4/Setup a new bridge (the easiest is to integrated these steps in the script setup_eth_wlan_bridge.sh):
@@ -37,8 +37,6 @@ General Info:
 	Connect the bridge to the virtual ethernet and the usb ethernet devices:
 		a) brctl addif "bridgeName" "usbDeviceName"
 		b) brctl addif "devName"
-	Assign IP from external DHCP server:
-		a) dhclient "bridgeName"
 	
 	5/Add the new port to T4P4S configuration (file opts-dpdk.cfg):
 		a) Add the following to pieal options:

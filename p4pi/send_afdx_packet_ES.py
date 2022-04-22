@@ -29,7 +29,7 @@ def get_wireless_interface():
     sys.exit(1)
 
 #DST_ADDR = "10:04:00:00:10:10"
-VL_dst = "03:00:00:00:00:02"
+VL_dst = "03:00:00:00:00:01"
 Src_const = "02:00:00"
 data = "12:34:56:75:99" # data = randomword(2)
 

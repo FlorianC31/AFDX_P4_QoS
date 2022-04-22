@@ -44,7 +44,7 @@ def main():
         iface_name = input("Please enter wireless interface name: ")
 
     #ethernet
-    #iface_name ="enp4s0f2"
+    iface_name ="enp4s0f2"
     print(f"Monitoring AFDX packets on interface: {iface_name}")
     sniff(iface=iface_name, prn=PacketHandler)
 
