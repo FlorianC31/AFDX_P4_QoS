@@ -1,5 +1,22 @@
 # TopoManager.py
 
+## Context
+
+To manage complex network topologies, a tool TopoManager.py has been developed. The initial goal of this tool was to provide switch tables containing Virtual Links parameters for each switch.
+
+Then the tool has been completed to automatically generate VL check scripts (packet sender and monitor for each VL on each host).
+Moreover, the tool has been configured to provide files for the 3 platforms used in this study:
+- P4app on Mininet for simulation
+- T4P4S for Linux PC with DPDK target
+- P4PI for Raspberry 3 & 4 with DPDK target
+
+This tool works with an input text file containing the links between hosts and switches and the complete path of each VL (with BAG and priority values). For PC and Raspberry, a port mapping must be also provided in input to make the correspondence between host and PC / ethernet interface name.
+
+Finally, some basic checks have been performed on the input topology data (consistency between hosts/switches and VL paths, BAG value being a power of 2ms, host/port mapping).
+
+
+
+
 The objective of this tool is to generate automaticaly complexe AFDX topology for p4app (Mininet), p4pi (Raspberry) or t4p4s (Linux PC).
 
 ## Launching command: 
