@@ -6,7 +6,7 @@ To manage complex network topologies, a tool TopoManager.py has been developed. 
 
 Then the tool has been completed to automatically generate VL check scripts (packet sender and monitor for each VL on each host).
 Moreover, the tool has been configured to provide files for the 3 platforms used in this study:
-- P4app on Mininet for simulation
+- P4app on Mininet for simulation (see '/Simulation/BENCHMARK_NO_QOS/' as P4APP example)
 - T4P4S for Linux PC with DPDK target
 - P4PI for Raspberry 3 & 4 with DPDK target
 
