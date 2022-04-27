@@ -91,3 +91,9 @@ Example : the input file should be written in the format below (for 2 vls, one f
 2,h4,h5
 ```
 for this example we should have 4 pcap files : h1.pcap, h3.pcap, h4.pcap and h5.pcap
+
+# send_afdx_packet_linux.c
+
+This is a second implementation of the end_system.py but using the C language which give us the ability to have lower BAG values.
+THIS IS JUST A STARTING PROJECT AND NEEDS FURTHER DEVELOPPMENT TO BE ADOPTED TO AFDX.
+Currently this script is able to send packets for a certain VL on a given BAG value but the packet format is wrong (not detected as AFDX packets on the raspberry PI)
