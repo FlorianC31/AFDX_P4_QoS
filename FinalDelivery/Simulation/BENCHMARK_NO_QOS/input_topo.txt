@@ -1,0 +1,20 @@
+Links to define (example: h1,s1):
+--start
+h1,s1,bw,100
+h2,s1,bw,100
+h3,s1,bw,100
+h4,s1,bw,100
+h5,s1,bw,100
+h6,s1,bw,100
+s1,h7,bw,100
+--stop
+
+Paths of VLs (example: VL1,h1,s1,s2,h6,64):
+--start
+VL1,h1,s1,h7,64,0
+VL2,h2,s1,h7,64,1
+VL3,h3,s1,h7,64,1
+VL4,h4,s1,h7,64,1
+VL5,h5,s1,h7,64,1
+VL6,h6,s1,h7,64,1
+--stop
