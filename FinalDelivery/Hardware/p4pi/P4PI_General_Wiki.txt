@@ -1,0 +1,77 @@
+/!\ The following has been tested with a Raspberry PI 4 4Gb RAM model /!\
+/!\ The following has been tested on P4PI version p4pi-image-2021-08-23-00b0e048-lite /!\
+
+General Info:
+- WiFi AP is not stable and gets disconnected easily if overflowed. Use Ethernet it's better
+- To access P4PI over ethernet use the following link :
+	https://github.com/p4lang/p4pi/wiki/P4Pi-Configuration#direct-ethernet-connection
+
+- To connect the ethernet port to the P4Switch use script: 
+	sudo /root/setup_eth_wlan_bridge.sh
+
+- R.Pi ethernet gigaport has mac address: 00:04:00:00:10:10
+
+- P4Pi uses linux bridges and VEth to connect the P4Switch to the physical devices (Ethernet, Wlan)
+
+- Linux bridge is an Layer2 virtual device that connects a physical device to one or more virtual devices
+  https://developers.redhat.com/blog/2018/10/22/introduction-to-linux-interfaces-for-virtual-networking#bonded_interface
+
+- wlan0/bridge0 is port 0
+- ethernet/bridge1/bridge2 is port 1
+
+- It's possible to add a usb to ethernet device and connect it to the P4Switch using the same idea (linux bridge):
+	1/Connect the USB to Ethernet device to the PI
+	2/run command "ip addr" to get the name of the new ethernet device
+	3/Setup a new virtual ethernet device with these commands (these cmds can be set up in a sh script):
+		a) ip link add dev "devName" type veth peer name "peerName"
+		b) ip link set dev "devName" address "mac_address"
+		c) ip link set dev "peerName" address "mac_address"
+		d) ip link set dev "devName" up
+		e) ethtool -K "devName" tx off
+		f) ethtool -K "peerName" tx off
+	4/Setup a new bridge (the easiest is to integrated these steps in the script setup_eth_wlan_bridge.sh):
+		a) ip link set dev "peerName" up
+		b) brctl addbr "bridgeName"
+		c) brctl setageing "bridgeName" 0
+		d) ip link set dev "bridgeName" up
+	Connect the bridge to the virtual ethernet and the usb ethernet devices:
+		a) brctl addif "bridgeName" "usbDeviceName"
+		b) brctl addif "devName"
+	
+	5/Add the new port to T4P4S configuration (file opts-dpdk.cfg):
+		a) Add the following to pieal options:
+			--vdev net_pcap"Number",rx_iface_in="devName",tx_iface="devName",tx_iface="devName"
+		b) in line piports (should be the line just after), modify the bitmask to activate the needed number of ports:
+			Example : 
+				OLD : -p 0x3 => 0011 : ports 0 and 1 are active
+				NEW : -p 0x7 => 0111 : ports 0, 1 and 2 are active
+
+P4RT Shell cmds: link https://github.com/p4lang/p4runtime-shell
+	tables: print available tables
+	tables["tablename"]: print table keys and actions
+
+	add table entry:
+		te = table_entry["tableName"](action="actionName")
+		te.match["KeyField"] = "KeyValue"
+		te.action["ActionParam"] = "ParamValue"
+		te.insert
+
+		/!\ when inserting make sure that the entry is sent and commited (te.insert*2) /!\
+		/!\ if te.insert causes an error, check that no parameter is missing (keys, action parameters) /!\
+		
+	table entry info:
+		te = table_entry["tableName"](action="actionName")
+		te.match? : print matching info
+		te.info? : print general info
+		
+	It's possible to insert values in the routing table via the
+	P4 program (at compile time) with the following syntax in the table definition block: 
+	table tableName {
+		...
+		const entries = {
+		    (keys) : actionName(params);
+		}
+        }
+        
+	/!\ When inputting the keys be careful about endiannes (MSB/LSB position) /!\
+	
