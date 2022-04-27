@@ -1,102 +1,9 @@
-# 1 "/home/p4/p4-learning-master/examples/multiqueueing/multi_queueing.p4"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "/home/p4/p4-learning-master/examples/multiqueueing/multi_queueing.p4"
-/* -*- P4_16 -*- */
-# 1 "/usr/local/share/p4c/p4include/core.p4" 1
 /*
 Copyright 2013-present Barefoot Networks, Inc.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-/* This is the P4-16 core library, which declares some built-in P4 constructs using P4 */
-
-
-
-
-/// Standard error codes.  New error codes can be declared by users.
-error {
-    NoError, /// No error.
-    PacketTooShort, /// Not enough bits in packet for 'extract'.
-    NoMatch, /// 'select' expression has no matches.
-    StackOutOfBounds, /// Reference to invalid element of a header stack.
-    HeaderTooShort, /// Extracting too many bits into a varbit field.
-    ParserTimeout, /// Parser execution time limit exceeded.
-    ParserInvalidArgument /// Parser operation was called with a value
-                           /// not supported by the implementation.
-}
-
-extern packet_in {
-    /// Read a header from the packet into a fixed-sized header @hdr and advance the cursor.
-    /// May trigger error PacketTooShort or StackOutOfBounds.
-    /// @T must be a fixed-size header type
-    void extract<T>(out T hdr);
-    /// Read bits from the packet into a variable-sized header @variableSizeHeader
-    /// and advance the cursor.
-    /// @T must be a header containing exactly 1 varbit field.
-    /// May trigger errors PacketTooShort, StackOutOfBounds, or HeaderTooShort.
-    void extract<T>(out T variableSizeHeader,
-                    in bit<32> variableFieldSizeInBits);
-    /// Read bits from the packet without advancing the cursor.
-    /// @returns: the bits read from the packet.
-    /// T may be an arbitrary fixed-size type.
-    T lookahead<T>();
-    /// Advance the packet cursor by the specified number of bits.
-    void advance(in bit<32> sizeInBits);
-    /// @return packet length in bytes.  This method may be unavailable on
-    /// some target architectures.
-    bit<32> length();
-}
-
-extern packet_out {
-    /// Write @hdr into the output packet, advancing cursor.
-    /// @T can be a header type, a header stack, a header_union, or a struct
-    /// containing fields with such types.
-    void emit<T>(in T hdr);
-}
-
-// TODO: remove from this file, convert to built-in
-/// Check a predicate @check in the parser; if the predicate is true do nothing,
-/// otherwise set the parser error to @toSignal, and transition to the `reject` state.
-extern void verify(in bool check, in error toSignal);
-
-/// Built-in action that does nothing.
-@noWarn("unused")
-action NoAction() {}
-
-/// Standard match kinds for table key fields.
-/// Some architectures may not support all these match kinds.
-/// Architectures can declare additional match kinds.
-match_kind {
-    /// Match bits exactly.
-    exact,
-    /// Ternary match, using a mask.
-    ternary,
-    /// Longest-prefix match.
-    lpm
-}
-# 3 "/home/p4/p4-learning-master/examples/multiqueueing/multi_queueing.p4" 2
-# 1 "/usr/local/share/p4c/p4include/v1model.p4" 1
-/*
-Copyright 2013-present Barefoot Networks, Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -110,6 +17,15 @@ limitations under the License.
  * can be found at the location below.
  *
  * https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
+ *
+ * Note 2: There were several discussions among P4 working group
+ * members in early 2019 regarding exactly how resubmit, recirculate,
+ * and clone3 operations can be called anywhere in their respective
+ * controls, but the values of the fields to be preserved is the value
+ * they have when that control is finished executing.  That is how
+ * these operations are defined in P4_14.  See
+ * https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md#restrictions-on-recirculate-resubmit-and-clone-operations
+ * for more details on the current state of affairs.
  *
  * Note 3: There are at least some P4_14 implementations where
  * invoking a generate_digest operation on a field_list will create a
@@ -127,32 +43,14 @@ limitations under the License.
  * p4c, it may behave differently.
  */
 
+#ifndef _V1_MODEL_P4_
+#define _V1_MODEL_P4_
 
+#include "core.p4"
 
-
-# 1 "/usr/local/share/p4c/p4include/core.p4" 1
-/*
-Copyright 2013-present Barefoot Networks, Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-/* This is the P4-16 core library, which declares some built-in P4 constructs using P4 */
-# 44 "/usr/local/share/p4c/p4include/v1model.p4" 2
-
-
-
-
+#ifndef V1MODEL_VERSION
+#define V1MODEL_VERSION 20180101
+#endif
 
 match_kind {
     range,
@@ -162,25 +60,25 @@ match_kind {
     selector
 }
 
-const bit<32> __v1model_version = 20180101;
+const bit<32> __v1model_version = V1MODEL_VERSION;
 
-
-
-
+#if V1MODEL_VERSION >= 20200408
+typedef bit<9>  PortId_t;       // should not be a constant size?
+#endif
 
 @metadata @name("standard_metadata")
 struct standard_metadata_t {
-
-
-
-
-
-    bit<9> ingress_port;
-    bit<9> egress_spec;
-    bit<9> egress_port;
-
-    bit<32> instance_type;
-    bit<32> packet_length;
+#if V1MODEL_VERSION >= 20200408
+    PortId_t    ingress_port;
+    PortId_t    egress_spec;
+    PortId_t    egress_port;
+#else
+    bit<9>      ingress_port;
+    bit<9>      egress_spec;
+    bit<9>      egress_port;
+#endif
+    bit<32>     instance_type;
+    bit<32>     packet_length;
     //
     // @alias is used to generate the field_alias section of the BMV2 JSON.
     // Field alias creates a mapping from the metadata name in P4 program to
@@ -200,10 +98,6 @@ struct standard_metadata_t {
     @alias("queueing_metadata.deq_qdepth")
     bit<19> deq_qdepth;
 
-    //Priority queueing
-    @alias("queueing_metadata.qid")
-    bit<5> qid;
-
     // intrinsic metadata
     @alias("intrinsic_metadata.ingress_global_timestamp")
     bit<48> ingress_global_timestamp;
@@ -217,12 +111,14 @@ struct standard_metadata_t {
     bit<16> egress_rid;
     /// Indicates that a verify_checksum() method has failed.
     /// 1 if a checksum error was found, otherwise 0.
-    bit<1> checksum_error;
+    bit<1>  checksum_error;
     /// Error produced by parsing
     error parser_error;
     /// set packet priority
     @alias("intrinsic_metadata.priority")
     bit<3> priority;
+    @alias("queueing_metadata.qid")
+    bit<5> qid;
 }
 
 enum CounterType {
@@ -237,9 +133,9 @@ enum MeterType {
 }
 
 extern counter
-
-
-
+#if V1MODEL_VERSION >= 20200408
+<I>
+#endif
 {
     /***
      * A counter object is created by calling its constructor.  This
@@ -271,11 +167,11 @@ extern counter
      *              size-1].  If index >= size, no counter state will be
      *              updated.
      */
-
-
-
+#if V1MODEL_VERSION >= 20200408
+    void count(in I index);
+#else
     void count(in bit<32> index);
-
+#endif
 }
 
 extern direct_counter {
@@ -310,14 +206,14 @@ extern direct_counter {
     void count();
 }
 
-
-
-
+#define V1MODEL_METER_COLOR_GREEN  0
+#define V1MODEL_METER_COLOR_YELLOW 1
+#define V1MODEL_METER_COLOR_RED    2
 
 extern meter
-
-
-
+#if V1MODEL_VERSION >= 20200408
+<I>
+#endif
 {
     /***
      * A meter object is created by calling its constructor.  This
@@ -355,11 +251,11 @@ extern meter
      *              range, the final value of result is not specified,
      *              and should be ignored by the caller.
      */
-
-
-
+#if V1MODEL_VERSION >= 20200408
+    void execute_meter<T>(in I index, out T result);
+#else
     void execute_meter<T>(in bit<32> index, out T result);
-
+#endif
 }
 
 extern direct_meter<T> {
@@ -398,11 +294,11 @@ extern direct_meter<T> {
     void read(out T result);
 }
 
-
-
-
+#if V1MODEL_VERSION >= 20200408
+extern register<T, I>
+#else
 extern register<T>
-
+#endif
 {
     /***
      * A register object is created by calling its constructor.  This
@@ -414,7 +310,7 @@ extern register<T>
      *
      * allocates storage for 512 values, each with type bit<32>.
      */
-    register(bit<32> size); // FIXME -- arg should be `int` but that breaks typechecking
+    register(bit<32> size);  // FIXME -- arg should be `int` but that breaks typechecking
     /***
      * read() reads the state of the register array stored at the
      * specified index, and returns it as the value written to the
@@ -430,11 +326,11 @@ extern register<T>
      *              ignored by the caller.
      */
     @noSideEffects
-
-
-
+#if V1MODEL_VERSION >= 20200408
+    void read(out T result, in I index);
+#else
     void read(out T result, in bit<32> index);
-
+#endif
     /***
      * write() writes the state of the register array at the specified
      * index, with the value provided by the value parameter.
@@ -457,11 +353,11 @@ extern register<T>
      *              parameter's value is written into the register
      *              array element specified by index.
      */
-
-
-
+#if V1MODEL_VERSION >= 20200408
+    void write(in I index, in T value);
+#else
     void write(in bit<32> index, in T value);
-
+#endif
 }
 
 // used as table implementation attribute
@@ -640,88 +536,69 @@ extern void verify_checksum_with_payload<T, O>(in bool condition, in T data, in 
 extern void update_checksum_with_payload<T, O>(in bool condition, in T data, inout O checksum, HashAlgorithm algo);
 
 /***
- * clone is in most ways identical to the clone_preserving_field_list
- * operation, with the only difference being that it never preserves
- * any user-defined metadata fields with the cloned packet.  It is
- * equivalent to calling clone_preserving_field_list with the same
- * type and session parameter values, with empty data.
+ * Calling resubmit during execution of the ingress control will,
+ * under certain documented conditions, cause the packet to be
+ * resubmitted, i.e. it will begin processing again with the parser,
+ * with the contents of the packet exactly as they were when it last
+ * began parsing.  The only difference is in the value of the
+ * standard_metadata instance_type field, and any user-defined
+ * metadata fields that the resubmit operation causes to be
+ * preserved.
+ *
+ * The value of the user-defined metadata fields that are preserved in
+ * resubmitted packets is the value they have at the end of ingress
+ * processing, not their values at the time the resubmit call is made.
+ * See Note 2 for issues with this.
+ *
+ * Calling resubmit is only supported in the ingress control.  There
+ * is no way to undo its effects once it has been called.  If resubmit
+ * is called multiple times during a single execution of the ingress
+ * control, only one packet is resubmitted, and only the data from the
+ * last such call is preserved.  See the v1model architecture
+ * documentation (Note 1) for more details.
+ */
+extern void resubmit<T>(in T data);
+
+/***
+ * Calling recirculate during execution of the egress control will,
+ * under certain documented conditions, cause the packet to be
+ * recirculated, i.e. it will begin processing again with the parser,
+ * with the contents of the packet as they are created by the
+ * deparser.  Recirculated packets can be distinguished from new
+ * packets in ingress processing by the value of the standard_metadata
+ * instance_type field.  The caller may request that some user-defined
+ * metadata fields be preserved with the recirculated packet.
+ *
+ * The value of the user-defined metadata fields that are preserved in
+ * recirculated packets is the value they have at the end of egress
+ * processing, not their values at the time the recirculate call is
+ * made.  See Note 2 for issues with this.
+ *
+ * Calling recirculate is only supported in the egress control.  There
+ * is no way to undo its effects once it has been called.  If
+ * recirculate is called multiple times during a single execution of
+ * the egress control, only one packet is recirculated, and only the
+ * data from the last such call is preserved.  See the v1model
+ * architecture documentation (Note 1) for more details.
+ */
+extern void recirculate<T>(in T data);
+
+/***
+ * clone is in most ways identical to the clone3 operation, with the
+ * only difference being that it never preserves any user-defined
+ * metadata fields with the cloned packet.  It is equivalent to
+ * calling clone3 with the same type and session parameter values,
+ * with empty data.
  */
 extern void clone(in CloneType type, in bit<32> session);
 
-@deprecated("Please use 'resubmit_preserving_field_list' instead")
-extern void resubmit<T>(in T data);
 /***
- * Calling resubmit_preserving_field_list during execution of the
- * ingress control will cause the packet to be resubmitted, i.e. it
- * will begin processing again with the parser, with the contents of
- * the packet exactly as they were when it last began parsing.  The
- * only difference is in the value of the standard_metadata
- * instance_type field, and any user-defined metadata fields that the
- * resubmit_preserving_field_list operation causes to be preserved.
- *
- * The user metadata fields that are tagged with @field_list(index) will
- * be sent to the parser together with the packet.
- *
- * Calling resubmit_preserving_field_list is only supported in the
- * ingress control.  There is no way to undo its effects once it has
- * been called.  If resubmit_preserving_field_list is called multiple
- * times during a single execution of the ingress control, only one
- * packet is resubmitted, and only the user-defined metadata fields
- * specified by the field list index from the last such call are
- * preserved.  See the v1model architecture documentation (Note 1) for
- * more details.
- *
- * For example, the user metadata fields can be annotated as follows:
- * struct UM {
- *    @field_list(1)
- *    bit<32> x;
- *    @field_list(1, 2)
- *    bit<32> y;
- *    bit<32> z;
- * }
- *
- * Calling resubmit_preserving_field_list(1) will resubmit the packet
- * and preserve fields x and y of the user metadata.  Calling
- * resubmit_preserving_field_list(2) will only preserve field y.
- */
-extern void resubmit_preserving_field_list(bit<8> index);
-
-@deprecated("Please use 'recirculate_preserving_field_list' instead")
-extern void recirculate<T>(in T data);
-/***
- * Calling recirculate_preserving_field_list during execution of the
- * egress control will cause the packet to be recirculated, i.e. it
- * will begin processing again with the parser, with the contents of
- * the packet as they are created by the deparser.  Recirculated
- * packets can be distinguished from new packets in ingress processing
- * by the value of the standard_metadata instance_type field.  The
- * caller may request that some user-defined metadata fields be
- * preserved with the recirculated packet.
- *
- * The user metadata fields that are tagged with @field_list(index) will be
- * sent to the parser together with the packet.
- *
- * Calling recirculate_preserving_field_list is only supported in the
- * egress control.  There is no way to undo its effects once it has
- * been called.  If recirculate_preserving_field_list is called
- * multiple times during a single execution of the egress control,
- * only one packet is recirculated, and only the user-defined metadata
- * fields specified by the field list index from the last such call
- * are preserved.  See the v1model architecture documentation (Note 1)
- * for more details.
- */
-extern void recirculate_preserving_field_list(bit<8> index);
-
-@deprecated("Please use 'clone_preserving_field_list' instead")
-extern void clone3<T>(in CloneType type, in bit<32> session, in T data);
-
-/***
- * Calling clone_preserving_field_list during execution of the ingress
- * or egress control will cause the packet to be cloned, sometimes
- * also called mirroring, i.e. zero or more copies of the packet are
- * made, and each will later begin egress processing as an independent
- * packet from the original packet.  The original packet continues
- * with its normal next steps independent of the clone(s).
+ * Calling clone3 during execution of the ingress or egress control
+ * will cause the packet to be cloned, sometimes also called
+ * mirroring, i.e. zero or more copies of the packet are made, and
+ * each will later begin egress processing as an independent packet
+ * from the original packet.  The original packet continues with its
+ * normal next steps independent of the clone(s).
  *
  * The session parameter is an integer identifying a clone session id
  * (sometimes called a mirror session id).  The control plane software
@@ -735,21 +612,24 @@ extern void clone3<T>(in CloneType type, in bit<32> session, in T data);
  * Cloned packets can be distinguished from others by the value of the
  * standard_metadata instance_type field.
  *
- * The user metadata fields that are tagged with @field_list(index) will be
- * sent to the parser together with a clone of the packet.
+ * The caller may request that some user-defined metadata field values
+ * from the original packet should be preserved with the cloned
+ * packet(s).  The value of the user-defined metadata fields that are
+ * preserved with cloned packets is the value they have at the end of
+ * ingress or egress processing, not their values at the time the
+ * clone3 call is made.  See Note 2 for issues with this.
  *
- * If clone_preserving_field_list is called during ingress processing,
- * the first parameter must be CloneType.I2E.  If
- * clone_preserving_field_list is called during egress processing, the
- * first parameter must be CloneType.E2E.
+ * If clone3 is called during ingress processing, the first parameter
+ * must be CloneType.I2E.  If clone3 is called during egress
+ * processing, the first parameter must be CloneType.E2E.
  *
  * There is no way to undo its effects once it has been called.  If
- * there are multiple calls to clone_preserving_field_list and/or
- * clone during a single execution of the same ingress (or egress)
- * control, only the last clone session and index are used.  See the
- * v1model architecture documentation (Note 1) for more details.
+ * there are multiple calls to clone3 and/or clone during a single
+ * execution of the same ingress (or egress) control, only the last
+ * clone session and data are used.  See the v1model architecture
+ * documentation (Note 1) for more details.
  */
-extern void clone_preserving_field_list(in CloneType type, in bit<32> session, bit<8> index);
+extern void clone3<T>(in CloneType type, in bit<32> session, in T data);
 
 extern void truncate(in bit<32> length);
 
@@ -876,204 +756,5 @@ package V1Switch<H, M>(Parser<H, M> p,
                        ComputeChecksum<H, M> ck,
                        Deparser<H> dep
                        );
-# 4 "/home/p4/p4-learning-master/examples/multiqueueing/multi_queueing.p4" 2
 
-const bit<16> TYPE_IPV4 = 0x800;
-
-/*************************************************************************
-*********************** H E A D E R S  ***********************************
-*************************************************************************/
-
-typedef bit<9> egressSpec_t;
-typedef bit<48> macAddr_t;
-typedef bit<32> ip4Addr_t;
-
-header ethernet_t {
-    macAddr_t dstAddr;
-    macAddr_t srcAddr;
-    bit<16> etherType;
-}
-
-header ipv4_t {
-    bit<4> version;
-    bit<4> ihl;
-    bit<8> tos;
-    bit<16> totalLen;
-    bit<16> identification;
-    bit<3> flags;
-    bit<13> fragOffset;
-    bit<8> ttl;
-    bit<8> protocol;
-    bit<16> hdrChecksum;
-    ip4Addr_t srcAddr;
-    ip4Addr_t dstAddr;
-}
-
-
-struct metadata {
-}
-
-struct headers {
-    ethernet_t ethernet;
-    ipv4_t ipv4;
-}
-
-/*************************************************************************
-*********************** P A R S E R  ***********************************
-*************************************************************************/
-
-parser MyParser(packet_in packet,
-                out headers hdr,
-                inout metadata meta,
-                inout standard_metadata_t standard_metadata) {
-
-    state start {
-
-        packet.extract(hdr.ethernet);
-        transition select(hdr.ethernet.etherType){
-
-            TYPE_IPV4: ipv4;
-            default: accept;
-        }
-
-    }
-
-    state ipv4 {
-
-        packet.extract(hdr.ipv4);
-        transition accept;
-    }
-
-}
-
-
-/*************************************************************************
-************   C H E C K S U M    V E R I F I C A T I O N   *************
-*************************************************************************/
-
-control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
-    apply { }
-}
-
-
-/*************************************************************************
-**************  I N G R E S S   P R O C E S S I N G   *******************
-*************************************************************************/
-
-control MyIngress(inout headers hdr,
-                  inout metadata meta,
-                  inout standard_metadata_t standard_metadata) {
-
-    action drop() {
-        mark_to_drop(standard_metadata);
-    }
-
-    action ipv4_forward(macAddr_t dstAddr, egressSpec_t port) {
-
-        // Set the src mac address as the previous dst, this is not correct right?
-        hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
-
-        // Set the destination mac address that we got from the match in the table
-        hdr.ethernet.dstAddr = dstAddr;
-
-        // Set the output port that we also get from the table
-        standard_metadata.egress_spec = port;
-
-        // Decrease ttl by 1
-        hdr.ipv4.ttl = hdr.ipv4.ttl -1;
-    }
-
-    table ipv4_lpm {
-        key = {
-            hdr.ipv4.dstAddr: lpm;
-        }
-        actions = {
-            ipv4_forward;
-            drop;
-            NoAction;
-        }
-        size = 1024;
-        default_action = NoAction();
-    }
-    apply {
-        // Only if IPV4 the rule is applied. Therefore other packets will not be forwarded.
-        if (hdr.ipv4.isValid()){
-            ipv4_lpm.apply();
-            // Packets from 10.0.1.1 get lowest priority (0)
-            if (hdr.ipv4.srcAddr == 0x0a000101){
-                standard_metadata.priority = (bit<3>)0;
-            }
-            // Packets from 10.0.1.2 get highest priority (7)
-            else if (hdr.ipv4.srcAddr == 0x0a000102){
-                standard_metadata.priority = (bit<3>)7;
-            }
-        }
-    }
-}
-
-/*************************************************************************
-****************  E G R E S S   P R O C E S S I N G   *******************
-*************************************************************************/
-
-control MyEgress(inout headers hdr,
-                 inout metadata meta,
-                 inout standard_metadata_t standard_metadata) {
-
-   apply {
-        hdr.ipv4.tos = (bit<8>)standard_metadata.qid;
-        hdr.ethernet.etherType = TYPE_IPV4 | (bit<16>) standard_metadata.priority;
-        }
-    }
-
-
-/*************************************************************************
-*************   C H E C K S U M    C O M P U T A T I O N   **************
-*************************************************************************/
-
-control MyComputeChecksum(inout headers hdr, inout metadata meta) {
-     apply {
- update_checksum(
-     hdr.ipv4.isValid(),
-            { hdr.ipv4.version,
-       hdr.ipv4.ihl,
-              hdr.ipv4.tos,
-              hdr.ipv4.totalLen,
-              hdr.ipv4.identification,
-              hdr.ipv4.flags,
-              hdr.ipv4.fragOffset,
-              hdr.ipv4.ttl,
-              hdr.ipv4.protocol,
-              hdr.ipv4.srcAddr,
-              hdr.ipv4.dstAddr },
-            hdr.ipv4.hdrChecksum,
-            HashAlgorithm.csum16);
-    }
-}
-
-
-/*************************************************************************
-***********************  D E P A R S E R  *******************************
-*************************************************************************/
-
-control MyDeparser(packet_out packet, in headers hdr) {
-    apply {
-
-        packet.emit(hdr.ethernet);
-        packet.emit(hdr.ipv4);
-
-    }
-}
-
-/*************************************************************************
-***********************  S W I T C H  *******************************
-*************************************************************************/
-
-//switch architecture
-V1Switch(
-MyParser(),
-MyVerifyChecksum(),
-MyIngress(),
-MyEgress(),
-MyComputeChecksum(),
-MyDeparser()
-) main;
+#endif  /* _V1_MODEL_P4_ */
