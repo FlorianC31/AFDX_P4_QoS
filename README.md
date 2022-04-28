@@ -57,6 +57,7 @@ The following files will be generated in the 'output_folder' directory and will 
 The following files will also be generated in the 'output_folder' to be used at step 4 and 5:
 - send_all_packets.sh -> To be called in Linux terminal to send pakets on all Virutal Links
 - analysis_topo.txt -> File to be given in input for the analyser.py script (see step4).
+- sniffer.sh -> To be called in Linux terminal to dump packets into pcap files
 
 
 ### Step 2
@@ -81,11 +82,21 @@ p4app run example.p4app
 ```
 
 ### Step 4
-Send packet and monitoring
-
+Launch the packet sniffing using tcpdump via the bash script sniffer.sh
+```shell
+./sniffer.sh
+```
 
 ### Step 5
-Get the .pcap files in your Linux temp directory and call analyser.py script.
+to send packets for all the VLs we use the send_all_packets.sh bash script:
+```shell
+./send_all_packets.sh
+```
+Copu .pcap files from /tmp/p4appp_logs near the analyser.py python script along with a file (named for example input_topo_for_analysis.txt) describing the topology for the analyser.py following the example given in /main/Tools/README.md
+then launch the logs : 
+```shell
+python3 analyser.py input_topo_for_analysis.txt
+```
 
 ## Run Switch on PC
 
