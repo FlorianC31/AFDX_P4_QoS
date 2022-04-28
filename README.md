@@ -101,12 +101,6 @@ then launch the logs :
 python3 analyser.py input_topo_for_analysis.txt
 ```
 
-## Run Switch on PC
+## Run Switch on Harware
+See /Hardware/example/README.md
 
-See /Hardware/t4p4s/README.md to configure and run p4 file on Linux Computer.
-
-TBC: Décrire la modification à apporter dans le fichier p4 pour inclure la table de switch générée par le topo Manager
-
-
-## Run Switch on Raspberry
-See /Hardware/p4pi/
