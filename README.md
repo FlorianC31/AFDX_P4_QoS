@@ -101,6 +101,6 @@ then launch the logs :
 python3 analyser.py input_topo_for_analysis.txt
 ```
 
-## Run Switch on Harware
+## Run Switch on Hardware (Linux PC or Raspberry)
 See /Hardware/example/README.md
 
