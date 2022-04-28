@@ -25,7 +25,7 @@ h5,PC1,enp5s4f1
 
 # Files Generation
 
-Lanuch the followind command to automatically generate input files:
+Launch the followind command to automatically generate input files:
 ```shell
 python3 TopoManager.py input_topo.txt t4p4s generated_files
 ```
@@ -85,7 +85,7 @@ control MyIngress(inout headers hdr,inout metadata meta,inout standard_metadata_
 
 # Analysis of the results
 
-Copy .pcap files near the analyser.py python script along with the file 'analysis_topo.txt' following the example given in /main/Tools/README.md
+Copy .pcap files near the analyser.py python script along with the file 'analysis_topo.txt' following the example given in /Tools/README.md
 then launch the logs : 
 ```shell
 python3 analyser.py analysis_topo.txt
