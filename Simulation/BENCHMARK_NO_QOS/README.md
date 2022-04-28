@@ -9,7 +9,7 @@ You can also install p4app from their depository: https://github.com/p4lang/p4ap
 
 # Run
 
-To run p4app, either you copy it in your bin with
+To run p4app, either you copy it in your bin with:
 ```shell
 cp p4app /usr/local/bin
 ```
@@ -17,7 +17,7 @@ And you can call it direclty with :
 ```shell
 p4app run BENCHMARK.p4app
 ```
-Either you can use it direclty in the workind direcltory with:
+Either you can use it direclty in the working direcltory with:
 ```shell
 ./p4app run BENCHMARK.p4app
 ```
