@@ -95,7 +95,7 @@ to send packets for all the VLs we use the send_all_packets.sh bash script:
 ```shell
 ./send_all_packets.sh
 ```
-Copu .pcap files from /tmp/p4appp_logs near the analyser.py python script along with a file (named for example input_topo_for_analysis.txt) describing the topology for the analyser.py following the example given in /main/Tools/README.md
+Copy .pcap files from /tmp/p4appp_logs near the analyser.py python script along with a file (named for example input_topo_for_analysis.txt) describing the topology for the analyser.py following the example given in /main/Tools/README.md
 then launch the logs : 
 ```shell
 python3 analyser.py input_topo_for_analysis.txt
