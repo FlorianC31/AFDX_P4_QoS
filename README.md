@@ -73,6 +73,8 @@ The p4app package 'example.p4app' needs to contain:
 - send_afdx_packet.py which be used at step 4 by send_all_packets.sh script on each Mininet host
 - topo.py which will be call by Mininet to build topology from topo.txt file
 
+See 'Simulation/BENCHMARK_NO_QOS/BENCHMARK.p4app' for p4app package example.
+
 ### Step 3
 
 Launch p4app with the following command :
