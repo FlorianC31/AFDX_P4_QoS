@@ -1,0 +1,1 @@
+Sending all VL from PC1. & python3 end_system.py  enp4s0 1000 1_128 & python3 end_system.py  enp5s0f0 1000 2_128 & python3 end_system.py  enp5s0f1 1000 3_128 & python3 end_system.py  enp5s4f0 1000 4_128 && bg
