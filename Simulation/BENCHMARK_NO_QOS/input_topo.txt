@@ -1,12 +1,12 @@
 Links to define (example: h1,s1):
 --start
-h1,s1,bw,100
-h2,s1,bw,100
-h3,s1,bw,100
-h4,s1,bw,100
-h5,s1,bw,100
-h6,s1,bw,100
-s1,h7,bw,100
+h1,s1
+h2,s1
+h3,s1
+h4,s1
+h5,s1
+h6,s1
+s1,h7
 --stop
 
 Paths of VLs (example: VL1,h1,s1,s2,h6,64):
