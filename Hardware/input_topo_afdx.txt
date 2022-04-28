@@ -1,0 +1,27 @@
+Links to define (example: h1,s1):
+--start
+h1,s1
+h2,s1
+h3,s1
+h4,s2
+h5,s3
+s1,s2
+s2,s3
+--stop
+
+Paths of VLs (example: VL1,h1,s1,s2,h6,64):
+--start
+VL1,h1,s1,s2,s3,h5,128,7
+VL2,h2,s1,s2,s3,h5,128,7
+VL3,h3,s1,s2,s3,h5,128,7
+VL4,h4,s2,s3,h5,128,5
+--stop
+
+Port mapping (for physical configuration only: p4pi or t4p4s, not p4app): host_name,PC_name,eth_interface_name
+--start
+h1,PC1,enp4s0
+h2,PC1,enp5s0f0
+h3,PC1,enp5s0f1
+h4,PC1,enp5s4f0
+h5,PC1,enp5s4f1
+--stop
