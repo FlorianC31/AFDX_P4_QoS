@@ -22,6 +22,9 @@ Add quality of service mechanisms such as SPQ, WRR and optionally DRR to the P4 
 ### AFDX ON PC
 Using the library DPDK and the compiler T4P4S, a solution was implemented to give a Linux PC the capability to act as an AFDX switch using the language P4.
 
+![image](https://user-images.githubusercontent.com/72257044/165796410-cb7a1a92-70fc-4407-978b-c701b46f9d6a.png)
+
+
 
 
 ### AFDX ON RASPBERRY PI 3 & PI 4
