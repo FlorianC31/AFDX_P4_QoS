@@ -36,3 +36,63 @@ A Static Priority Queue along with pseudo Weighted Round Robin algorithms were i
 
 ## GROWTH HIGHLIGHTS
 Airbus, the market leader in AFDX deployment as of 2022, does not adopt a quality-of-service mechanism. This study served as a proof of concept for the viability of incorporating such processes into the AFDX airborne network, potentially adding an additional layer of security by prioritizing time-sensitive flows (such as flight control) above less crucial ones (infotainment for example).
+
+
+# Tutorial
+
+## Simulation With Mininet & p4app
+
+### Step 1
+
+In the folder 'Simulation/BENCHMARK_NO_QOS/'
+
+Use the input_topo.txt file as an input for with the Tools/TopoManager.py script with the following command:
+```shell
+python3 TopoManager.py input_topo.txt p4app output_folder
+```
+The following files will be generated in the 'output_folder' directory and will need to be placed in the p4app package:
+- topo.txt (containing topology data for Mininet)
+- commands_X.txt for each switch (with X is the switch number)
+
+The following files will also be generated in the 'output_folder' to be used at step 4 and 5:
+- send_all_packets.sh -> To be called in Linux terminal to send pakets on all Virutal Links
+- analysis_topo.txt -> File to be given in input for the analyser.py script (see step4).
+
+
+### Step 2
+
+The p4app package 'example.p4app' needs to contain:
+- topo.txt file generated at step 1
+- commands_X.txt files generated at step 1
+- P4 file with the script behaviour (for example afdx.p4)
+- p4app.json containing usefull data for p4app
+- send_afdx_packet.py which be used at step 4 by send_all_packets.sh script on each Mininet host
+- topo.py which will be call by Mininet to build topology from topo.txt file
+
+### Step 3
+
+Launch p4app with the following command :
+```shell
+p4app run example.p4app
+```
+/!\ if p4app script is not install in the user bin but it located direclty in the working directory, this command has to be used :
+```shell
+./p4app run example.p4app
+```
+
+### Step 4
+Send packet and monitoring
+
+
+### Step 5
+Get the .pcap files in your Linux temp directory and call analyser.py script.
+
+## Run Switch on PC
+
+See /Hardware/t4p4s/README.md to configure and run p4 file on Linux Computer.
+
+TBC: Décrire la modification à apporter dans le fichier p4 pour inclure la table de switch générée par le topo Manager
+
+
+## Run Switch on Raspberry
+See /Hardware/p4pi/
