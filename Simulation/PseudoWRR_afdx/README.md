@@ -1,4 +1,4 @@
-# Strict Priority Queueing
+# Pseudo WRR AFDX
 
 ```
             ____
@@ -42,7 +42,7 @@ thus you will also have to add that in the `v1model.p4` file.
 
 ## How to run
 
-AFDX Packets from `h1`, `h2`, `h3`, `h4`,`h5` and `h6`  towards `h7` will be sent to two different priority queues 0 and 7, respectively.
+AFDX Packets from `h1`, `h2`, `h3`, `h4`,`h5` and `h6`  towards `h7` will be sent to on all the queues in an attempt to simulate a WRR algorithm.
 (if the following commads fail please install the dependencies found at https://github.com/nsg-ethz/p4-learning#install-the-required-software )
 ```
 bash
