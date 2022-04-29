@@ -3,21 +3,17 @@
 
 General Info:
 - WiFi AP is not stable and gets disconnected easily if overflowed. Use Ethernet it's better
-- To access P4PI over ethernet use the following link :
+- A quick way to have wlan + ethernet access is the following link :
 	https://github.com/p4lang/p4pi/wiki/P4Pi-Configuration#direct-ethernet-connection
 
-- To connect the ethernet port to the P4Switch use script: 
+  and running the following script:
 	sudo /root/setup_eth_wlan_bridge.sh
-
-- R.Pi ethernet gigaport has mac address: 00:04:00:00:10:10
 
 - P4Pi uses linux bridges and VEth to connect the P4Switch to the physical devices (Ethernet, Wlan)
 
 - Linux bridge is an Layer2 virtual device that connects a physical device to one or more virtual devices
   https://developers.redhat.com/blog/2018/10/22/introduction-to-linux-interfaces-for-virtual-networking#bonded_interface
 
-- wlan0/bridge0 is port 0
-- ethernet/bridge1/bridge2 is port 1
 
 - It's possible to add a usb to ethernet device and connect it to the P4Switch using the same idea (linux bridge):
 	1/Connect the USB to Ethernet device to the PI
@@ -37,6 +33,11 @@ General Info:
 	Connect the bridge to the virtual ethernet and the usb ethernet devices:
 		a) brctl addif "bridgeName" "usbDeviceName"
 		b) brctl addif "devName"
+
+	Two helper scripts are provided in the repo that automate this task
+	For Raspberry Pi 4 use pi4_switch_setup_3_ports.sh script as a starting point to setup a switch with 3 ports
+	For Raspberry Pi 3 use pi3_2ports_switch_setup.sh script as a starting point to setup a switch with 2 ports 	
+	/!\ Don't forget to adapt the interface names to what you have /!\
 	
 	5/Add the new port to T4P4S configuration (file opts-dpdk.cfg):
 		a) Add the following to pieal options:

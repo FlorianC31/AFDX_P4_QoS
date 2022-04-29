@@ -1,4 +1,5 @@
 #setup onboard ethernet to eth0
+#this step is only needed for raspberry pi 3, do not do this for raspberry pi 4
 echo "setup onboard ethernet to eth0"
 ifconfig enxb827eb664f43 down
 ip link set enxb827eb664f43 name eth0
